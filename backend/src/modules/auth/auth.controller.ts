@@ -1,6 +1,8 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, Res, UseGuards, Req } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
-import { IsString, MinLength, MaxLength } from 'class-validator';
+import { IsString, MinLength, MaxLength, IsEmail } from 'class-validator';
+import type { Response, Request } from 'express';
 
 export class RegisterDto {
   @IsString()
@@ -16,6 +18,9 @@ export class RegisterDto {
   @MinLength(1)
   @MaxLength(50)
   realName: string;
+
+  @IsEmail({}, { message: '邮箱格式不正确' })
+  email: string;
 }
 
 export class LoginDto {
@@ -26,17 +31,37 @@ export class LoginDto {
   password: string;
 }
 
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  sameSite: 'strict' as const,
+  path: '/',
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+};
+
 @Controller('api/auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
-  register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto);
+  async register(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: Response) {
+    const { accessToken, user } = await this.authService.register(dto);
+    res.cookie('token', accessToken, COOKIE_OPTIONS);
+    return { user };
   }
 
   @Post('login')
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
+    const { accessToken, user } = await this.authService.login(dto);
+    res.cookie('token', accessToken, COOKIE_OPTIONS);
+    return { user };
+  }
+
+  @Post('logout')
+  @UseGuards(AuthGuard('jwt'))
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const user = req.user as { id: string };
+    await this.authService.logout(user.id);
+    res.clearCookie('token', { path: '/' });
+    return { message: 'ok' };
   }
 }

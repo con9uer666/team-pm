@@ -9,10 +9,10 @@ export interface RegisterDto {
   username: string
   password: string
   realName: string
+  email: string
 }
 
 export interface AuthResponse {
-  accessToken: string
   user: {
     id: string
     username: string
@@ -25,9 +25,10 @@ export interface AuthResponse {
 export const authApi = {
   login: (dto: LoginDto): Promise<AuthResponse> => http.post('/auth/login', dto),
   register: (dto: RegisterDto): Promise<AuthResponse> => http.post('/auth/register', dto),
+  logout: (): Promise<void> => http.post('/auth/logout'),
 }
 
 export const usersApi = {
-  getMe: () => http.get('/users/me'),
+  getMe: (): Promise<AuthResponse['user']> => http.get('/users/me'),
   getAll: () => http.get('/users'),
 }

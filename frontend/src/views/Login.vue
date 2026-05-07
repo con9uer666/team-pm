@@ -11,6 +11,7 @@ const isRegister = ref(false)
 const username = ref('')
 const password = ref('')
 const realName = ref('')
+const email = ref('')
 const loading = ref(false)
 
 async function handleSubmit() {
@@ -22,11 +23,19 @@ async function handleSubmit() {
     showFailToast('请填写真实姓名')
     return
   }
+  if (isRegister.value && !email.value) {
+    showFailToast('请填写邮箱')
+    return
+  }
+  if (isRegister.value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) {
+    showFailToast('邮箱格式不正确')
+    return
+  }
 
   loading.value = true
   try {
     if (isRegister.value) {
-      await auth.register(username.value, password.value, realName.value)
+      await auth.register(username.value, password.value, realName.value, email.value)
       showSuccessToast('注册成功')
     } else {
       await auth.login(username.value, password.value)
@@ -68,6 +77,14 @@ async function handleSubmit() {
           name="realName"
           label="姓名"
           placeholder="请输入真实姓名"
+        />
+        <van-field
+          v-if="isRegister"
+          v-model="email"
+          name="email"
+          label="邮箱"
+          placeholder="请输入邮箱"
+          type="email"
         />
       </van-cell-group>
 

@@ -14,8 +14,8 @@ const roleNames: Record<number, string> = {
   6: '指导老师',
 }
 
-function handleLogout() {
-  auth.logout()
+async function handleLogout() {
+  await auth.logout()
   router.push('/login')
 }
 </script>
