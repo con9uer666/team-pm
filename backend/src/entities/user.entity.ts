@@ -50,10 +50,10 @@ export class User {
   @Column({ type: 'varchar', length: 20, default: UserStatus.ACTIVE })
   status: UserStatus;
 
-  @Column({ nullable: true, unique: true })
+  @Column({ type: 'varchar', nullable: true, unique: true })
   email: string | null;
 
-  @Column({ name: 'session_token', nullable: true })
+  @Column({ name: 'session_token', type: 'varchar', nullable: true })
   sessionToken: string | null;
 
   @Column({ name: 'is_super_admin', default: false })
