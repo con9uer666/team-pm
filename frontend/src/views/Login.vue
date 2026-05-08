@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { showFailToast, showSuccessToast } from 'vant'
 import { useAuthStore } from '../stores/auth'
-import { orgApi, type GroupInfo } from '../api/users'
+import { orgApi } from '../api/users'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -15,7 +15,7 @@ const realName = ref('')
 const email = ref('')
 const groupIds = ref<string[]>([])
 const loading = ref(false)
-const availableGroups = ref<GroupInfo[]>([])
+const availableGroups = ref<Array<{ id: string; name: string }>>([])
 const showGroupPicker = ref(false)
 
 const groupNames = computed(() =>
@@ -28,7 +28,7 @@ const groupNames = computed(() =>
 async function ensureGroups() {
   if (availableGroups.value.length) return
   try {
-    availableGroups.value = await orgApi.getGroups()
+    availableGroups.value = await orgApi.getPublicGroups()
   } catch (e: any) {
     showFailToast(e?.message || '加载技术组失败')
   }

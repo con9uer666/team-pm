@@ -103,3 +103,15 @@ export class OrganizationController {
     return this.usersService.getOrganizationStructure();
   }
 }
+
+@Controller('api/public')
+export class PublicOrgController {
+  constructor(private readonly usersService: UsersService) {}
+
+  @Get('groups')
+  getGroups() {
+    return this.usersService
+      .findAllGroups()
+      .then(list => list.map(g => ({ id: g.id, name: g.name })));
+  }
+}

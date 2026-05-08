@@ -53,6 +53,7 @@ export const usersApi = {
 
 export const orgApi = {
   getGroups: (): Promise<GroupInfo[]> => http.get('/organization/groups'),
+  getPublicGroups: (): Promise<Pick<GroupInfo, 'id' | 'name'>[]> => http.get('/public/groups'),
   createGroup: (dto: { name: string; leaderIds?: string[]; divisionId?: string }): Promise<GroupInfo> =>
     http.post('/organization/groups', dto),
   setGroupLeaders: (id: string, leaderIds: string[]): Promise<GroupInfo> =>
