@@ -23,6 +23,7 @@ const navItems = [
   { icon: 'todo-list-o', label: '任务管理', path: '/admin/tasks', name: 'admin-tasks' },
   { icon: 'video-o', label: '会议管理', path: '/admin/meetings', name: 'admin-meetings' },
   { icon: 'flag-o', label: '阶段性目标', path: '/admin/objectives', name: 'admin-objectives' },
+  { icon: 'location-o', label: '打卡围栏', path: '/admin/fences', name: 'admin-fences' },
 ]
 
 function isActive(name: string) {

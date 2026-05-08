@@ -156,11 +156,11 @@ onMounted(loadStats)
             </div>
             <span>安排会议</span>
           </div>
-          <div class="action-item" @click="router.push('/tasks')">
+          <div class="action-item" @click="router.push('/attendance')">
             <div class="action-icon" style="background: rgba(245,158,11,0.1); color: var(--accent-orange);">
-              <van-icon name="label-o" size="20" />
+              <van-icon name="clock-o" size="20" />
             </div>
-            <span>派发任务</span>
+            <span>打卡考勤</span>
           </div>
           <div class="action-item" @click="router.push('/notifications')">
             <div class="action-icon" style="background: rgba(139,92,246,0.1); color: var(--accent-purple);">

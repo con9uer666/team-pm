@@ -30,6 +30,7 @@ const navItems = computed<NavItem[]>(() => {
     { icon: 'todo-list-o', label: '任务中心', path: '/tasks', name: 'tasks' },
     { icon: 'friends-o', label: '协作空间', path: '/collaborate', name: 'collaborate' },
     { icon: 'apartment-o', label: '我的空间', path: '/space', name: 'space' },
+    { icon: 'clock-o', label: '打卡考勤', path: '/attendance', name: 'attendance' },
     { icon: 'cluster-o', label: '团队架构', path: '/team-structure', name: 'team-structure', guestAllowed: true },
     { icon: 'bell', label: '消息通知', path: '/notifications', name: 'notifications', guestAllowed: true },
     { icon: 'user-o', label: '个人中心', path: '/profile', name: 'profile', guestAllowed: true },

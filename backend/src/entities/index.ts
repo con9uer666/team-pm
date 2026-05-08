@@ -7,3 +7,5 @@ export { Meeting, MeetingScope, MeetingStatus, AttendanceStatus } from './meetin
 export { MeetingParticipant, MeetingMinutes } from './meeting-participant.entity';
 export { Notification, NotificationType } from './notification.entity';
 export { Objective, ObjectiveScope, ObjectiveStatus } from './objective.entity';
+export { AttendanceFence } from './attendance-fence.entity';
+export { AttendanceSession, AttendanceSessionStatus } from './attendance-session.entity';

@@ -59,3 +59,4 @@ cd /opt/app && git pull && docker compose up -d --build
 - 服务器 Docker 镜像加速: /etc/docker/daemon.json 配置了国内镜像源
 - 不需要域名和备案，直接 IP+端口访问
 - 防火墙需开放 8080 端口
+- 高德 Web 服务 Key 放 `frontend/.env` 的 `VITE_AMAP_KEY`（gitignored）；docker compose 通过 build args 注入。服务器部署前先 `export VITE_AMAP_KEY=xxx` 再 `docker compose up -d --build`。控制台需开启「Web 服务」并绑定域名/IP 白名单。

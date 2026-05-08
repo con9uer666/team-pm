@@ -26,6 +26,7 @@ const router = createRouter({
         { path: 'tasks', name: 'admin-tasks', component: () => import('../views/admin/AdminTasks.vue') },
         { path: 'meetings', name: 'admin-meetings', component: () => import('../views/admin/AdminMeetings.vue') },
         { path: 'objectives', name: 'admin-objectives', component: () => import('../views/admin/AdminObjectives.vue') },
+        { path: 'fences', name: 'admin-fences', component: () => import('../views/admin/AdminFences.vue') },
       ],
     },
     {
@@ -42,6 +43,7 @@ const router = createRouter({
         { path: 'team-structure', name: 'team-structure', component: () => import('../views/TeamStructure.vue') },
         { path: 'space', name: 'space', component: () => import('../views/MySpace.vue') },
         { path: 'space/:scope/:id', name: 'space-detail', component: () => import('../views/SpaceDetail.vue') },
+        { path: 'attendance', name: 'attendance', component: () => import('../views/Attendance.vue') },
       ],
     },
   ],

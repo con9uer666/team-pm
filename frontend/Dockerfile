@@ -6,6 +6,8 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
+ARG VITE_AMAP_KEY=
+ENV VITE_AMAP_KEY=$VITE_AMAP_KEY
 RUN npx vite build
 
 FROM nginx:alpine

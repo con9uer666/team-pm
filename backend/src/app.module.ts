@@ -14,6 +14,7 @@ import { ApprovalsModule } from './modules/approvals/approvals.module';
 import { ObjectivesModule } from './modules/objectives/objectives.module';
 import { SpacesModule } from './modules/spaces/spaces.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { AttendanceModule } from './modules/attendance/attendance.module';
 import { User, Group, Division, ApprovalStatus, Position, RoleLevel } from './entities';
 
 @Module({
@@ -45,6 +46,7 @@ import { User, Group, Division, ApprovalStatus, Position, RoleLevel } from './en
     ObjectivesModule,
     SpacesModule,
     AdminModule,
+    AttendanceModule,
   ],
 })
 export class AppModule implements OnModuleInit {

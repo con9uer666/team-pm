@@ -49,7 +49,10 @@ services:
     restart: unless-stopped
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        VITE_AMAP_KEY: ${VITE_AMAP_KEY:-}
     container_name: team_pm_frontend
     ports:
       - "8080:80"
