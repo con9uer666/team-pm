@@ -30,12 +30,15 @@ export class WechatController {
   async callback(@Body() body: any) {
     this.logger.log(`WxPusher callback: ${JSON.stringify(body)}`);
     try {
-      const action = body?.action;
+      const action: string = (body?.action || '').toString();
       const data = body?.data || {};
       const uid: string | undefined = data.uid;
       const extra: string | undefined = data.extra;
 
-      if (action === 'subscribe' && uid && extra) {
+      const isSubscribe =
+        action.toUpperCase().includes('SUBSCRIBE') && !action.toUpperCase().includes('UNSUBSCRIBE');
+
+      if (isSubscribe && uid && extra) {
         const user = await this.userRepo.findOne({ where: { id: extra } });
         if (user) {
           user.wechatWorkId = uid;
@@ -49,6 +52,8 @@ export class WechatController {
         } else {
           this.logger.warn(`Callback extra=${extra} not matched to any user`);
         }
+      } else {
+        this.logger.warn(`Callback skipped: action=${action}, uid=${uid}, extra=${extra}`);
       }
     } catch (e: any) {
       this.logger.error(`Callback error: ${e.message}`);
