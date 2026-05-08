@@ -5,6 +5,7 @@ import { MeetingsService } from './meetings.service';
 import { Meeting, MeetingParticipant, MeetingMinutes, User } from '../../entities';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { WechatModule } from '../wechat/wechat.module';
+import { ApprovalGuard } from '../../common/guards/approval.guard';
 
 @Module({
   imports: [
@@ -13,6 +14,6 @@ import { WechatModule } from '../wechat/wechat.module';
     WechatModule,
   ],
   controllers: [MeetingsController],
-  providers: [MeetingsService],
+  providers: [MeetingsService, ApprovalGuard],
 })
 export class MeetingsModule {}

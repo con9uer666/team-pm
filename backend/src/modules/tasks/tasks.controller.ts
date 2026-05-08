@@ -2,6 +2,7 @@ import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } f
 import { AuthGuard } from '@nestjs/passport';
 import { TasksService } from './tasks.service';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { ApprovalGuard } from '../../common/guards/approval.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RoleLevel } from '../../entities';
@@ -26,6 +27,10 @@ export class CreateTaskDto {
   @IsUUID()
   @IsOptional()
   groupId?: string;
+
+  @IsUUID()
+  @IsOptional()
+  objectiveId?: string;
 
   @IsString()
   @IsOptional()
@@ -56,7 +61,7 @@ export class RejectTaskDto {
 }
 
 @Controller('api/tasks')
-@UseGuards(AuthGuard('jwt'), RolesGuard)
+@UseGuards(AuthGuard('jwt'), ApprovalGuard, RolesGuard)
 export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 

@@ -2,9 +2,12 @@ import { Controller, Get, Patch, Param, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { NotificationsService } from './notifications.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { ApprovalGuard } from '../../common/guards/approval.guard';
+import { AllowPending } from '../../common/decorators/allow-pending.decorator';
 
 @Controller('api/notifications')
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'), ApprovalGuard)
+@AllowPending()
 export class NotificationsController {
   constructor(private readonly service: NotificationsService) {}
 

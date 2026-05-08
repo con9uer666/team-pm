@@ -10,6 +10,25 @@ const router = createRouter({
       component: () => import('../views/Login.vue'),
     },
     {
+      path: '/pending',
+      name: 'pending',
+      component: () => import('../views/Pending.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/admin',
+      component: () => import('../views/admin/AdminLayout.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+      children: [
+        { path: '', name: 'admin-dashboard', component: () => import('../views/admin/AdminDashboard.vue') },
+        { path: 'users', name: 'admin-users', component: () => import('../views/admin/AdminUsers.vue') },
+        { path: 'org', name: 'admin-org', component: () => import('../views/admin/AdminOrg.vue') },
+        { path: 'tasks', name: 'admin-tasks', component: () => import('../views/admin/AdminTasks.vue') },
+        { path: 'meetings', name: 'admin-meetings', component: () => import('../views/admin/AdminMeetings.vue') },
+        { path: 'objectives', name: 'admin-objectives', component: () => import('../views/admin/AdminObjectives.vue') },
+      ],
+    },
+    {
       path: '/',
       component: () => import('../views/Layout.vue'),
       meta: { requiresAuth: true },
@@ -19,19 +38,49 @@ const router = createRouter({
         { path: 'collaborate', name: 'collaborate', component: () => import('../views/Collaborate.vue') },
         { path: 'notifications', name: 'notifications', component: () => import('../views/Notifications.vue') },
         { path: 'profile', name: 'profile', component: () => import('../views/Profile.vue') },
-        { path: 'admin/members', name: 'admin-members', component: () => import('../views/AdminMembers.vue') },
         { path: 'meetings', name: 'meetings', component: () => import('../views/Meetings.vue') },
         { path: 'team-structure', name: 'team-structure', component: () => import('../views/TeamStructure.vue') },
+        { path: 'space', name: 'space', component: () => import('../views/MySpace.vue') },
+        { path: 'space/:scope/:id', name: 'space-detail', component: () => import('../views/SpaceDetail.vue') },
       ],
     },
   ],
 })
 
+const GUEST_ALLOWED = new Set<string>([
+  'pending',
+  'profile',
+  'notifications',
+  'team-structure',
+])
+
 router.beforeEach((to) => {
   const auth = useAuthStore()
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
-  if (requiresAuth && !auth.user) {
+  const requiresAdmin = to.matched.some(record => record.meta.requiresAdmin)
+
+  if (!requiresAuth) {
+    if (to.name === 'login' && auth.user) {
+      return auth.canAdmin && auth.adminMode ? '/admin' : '/'
+    }
+    return
+  }
+
+  if (!auth.user) {
     return '/login'
+  }
+
+  if (auth.isGuest) {
+    if (to.name && GUEST_ALLOWED.has(to.name as string)) return
+    return '/pending'
+  }
+
+  if (requiresAdmin && !auth.canAdmin) {
+    return '/'
+  }
+
+  if (!requiresAdmin && auth.canAdmin && auth.adminMode) {
+    return '/admin'
   }
 })
 

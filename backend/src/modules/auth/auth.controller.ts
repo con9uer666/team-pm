@@ -1,7 +1,7 @@
 import { Controller, Post, Body, Res, UseGuards, Req } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
-import { IsString, MinLength, MaxLength, IsEmail } from 'class-validator';
+import { IsString, MinLength, MaxLength, IsEmail, IsArray, ArrayMinSize, IsUUID } from 'class-validator';
 import type { Response, Request } from 'express';
 
 export class RegisterDto {
@@ -21,6 +21,11 @@ export class RegisterDto {
 
   @IsEmail({}, { message: '邮箱格式不正确' })
   email: string;
+
+  @IsArray()
+  @ArrayMinSize(1, { message: '请至少选择一个技术组' })
+  @IsUUID('4', { each: true })
+  groupIds: string[];
 }
 
 export class LoginDto {

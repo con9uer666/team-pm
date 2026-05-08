@@ -7,6 +7,7 @@ export interface Task {
   content: string | null
   divisionId: string | null
   groupId: string | null
+  objectiveId: string | null
   completionRequirements: string | null
   creatorId: string
   assigneeId: string
@@ -48,6 +49,7 @@ export interface CreateTaskDto {
   content?: string
   divisionId?: string
   groupId?: string
+  objectiveId?: string
   completionRequirements?: string
   dueDate: string
   priority?: number

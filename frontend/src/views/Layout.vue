@@ -16,18 +16,27 @@ function handleResize() {
 onMounted(() => window.addEventListener('resize', handleResize))
 onUnmounted(() => window.removeEventListener('resize', handleResize))
 
-const active = computed(() => {
-  const map: Record<string, number> = { home: 0, tasks: 1, collaborate: 2, notifications: 3, profile: 4 }
-  return map[route.name as string] ?? 0
-})
+interface NavItem {
+  icon: string
+  label: string
+  path: string
+  name: string
+  guestAllowed?: boolean
+}
 
-const navItems = [
-  { icon: 'chart-trending-o', label: '仪表盘', path: '/', name: 'home' },
-  { icon: 'todo-list-o', label: '任务中心', path: '/tasks', name: 'tasks' },
-  { icon: 'friends-o', label: '协作空间', path: '/collaborate', name: 'collaborate' },
-  { icon: 'bell', label: '消息通知', path: '/notifications', name: 'notifications' },
-  { icon: 'user-o', label: '个人中心', path: '/profile', name: 'profile' },
-]
+const navItems = computed<NavItem[]>(() => {
+  const full: NavItem[] = [
+    { icon: 'chart-trending-o', label: '仪表盘', path: '/', name: 'home' },
+    { icon: 'todo-list-o', label: '任务中心', path: '/tasks', name: 'tasks' },
+    { icon: 'friends-o', label: '协作空间', path: '/collaborate', name: 'collaborate' },
+    { icon: 'apartment-o', label: '我的空间', path: '/space', name: 'space' },
+    { icon: 'cluster-o', label: '团队架构', path: '/team-structure', name: 'team-structure', guestAllowed: true },
+    { icon: 'bell', label: '消息通知', path: '/notifications', name: 'notifications', guestAllowed: true },
+    { icon: 'user-o', label: '个人中心', path: '/profile', name: 'profile', guestAllowed: true },
+  ]
+  if (auth.isGuest) return full.filter(n => n.guestAllowed)
+  return full
+})
 
 function isActive(name: string) {
   return route.name === name
@@ -35,6 +44,11 @@ function isActive(name: string) {
 
 function navigateTo(path: string) {
   router.push(path)
+}
+
+function switchToAdmin() {
+  auth.setAdminMode(true)
+  router.push('/admin')
 }
 </script>
 
@@ -73,6 +87,19 @@ function navigateTo(path: string) {
           </transition>
           <div v-if="isActive(item.name)" class="nav-item__indicator"></div>
         </div>
+
+        <div
+          v-if="auth.canAdmin && !auth.isGuest"
+          class="nav-item nav-item--admin"
+          @click="switchToAdmin"
+        >
+          <div class="nav-item__icon">
+            <van-icon name="setting-o" size="20" />
+          </div>
+          <transition name="fade">
+            <span v-if="!sidebarCollapsed" class="nav-item__label">进入后台</span>
+          </transition>
+        </div>
       </nav>
 
       <div class="sidebar__footer">
@@ -92,6 +119,10 @@ function navigateTo(path: string) {
 
     <!-- Main Content -->
     <main class="main" :class="{ 'main--with-sidebar': !isMobile, 'main--collapsed': !isMobile && sidebarCollapsed }">
+      <div v-if="auth.isGuest" class="guest-banner">
+        <van-icon name="clock-o" /> 账号审核中，你暂时只能查看团队架构和通知。
+        <van-button size="mini" plain @click="router.push('/pending')">查看审核状态</van-button>
+      </div>
       <router-view v-slot="{ Component }">
         <transition name="page" mode="out-in">
           <component :is="Component" />
@@ -100,12 +131,19 @@ function navigateTo(path: string) {
     </main>
 
     <!-- Mobile Bottom Tab -->
-    <van-tabbar v-if="isMobile" v-model:active="active" route class="mobile-tabbar">
-      <van-tabbar-item icon="home-o" to="/">首页</van-tabbar-item>
-      <van-tabbar-item icon="todo-list-o" to="/tasks">任务</van-tabbar-item>
-      <van-tabbar-item icon="friends-o" to="/collaborate">协作</van-tabbar-item>
-      <van-tabbar-item icon="bell" to="/notifications">通知</van-tabbar-item>
-      <van-tabbar-item icon="user-o" to="/profile">我的</van-tabbar-item>
+    <van-tabbar v-if="isMobile" route class="mobile-tabbar">
+      <template v-if="!auth.isGuest">
+        <van-tabbar-item icon="home-o" to="/">首页</van-tabbar-item>
+        <van-tabbar-item icon="todo-list-o" to="/tasks">任务</van-tabbar-item>
+        <van-tabbar-item icon="apartment-o" to="/space">空间</van-tabbar-item>
+        <van-tabbar-item icon="bell" to="/notifications">通知</van-tabbar-item>
+        <van-tabbar-item icon="user-o" to="/profile">我的</van-tabbar-item>
+      </template>
+      <template v-else>
+        <van-tabbar-item icon="cluster-o" to="/team-structure">架构</van-tabbar-item>
+        <van-tabbar-item icon="bell" to="/notifications">通知</van-tabbar-item>
+        <van-tabbar-item icon="user-o" to="/profile">我的</van-tabbar-item>
+      </template>
     </van-tabbar>
   </div>
 </template>
@@ -187,7 +225,6 @@ function navigateTo(path: string) {
   background: rgba(255, 255, 255, 0.1);
 }
 
-/* Navigation */
 .sidebar__nav {
   flex: 1;
   padding: 8px 12px;
@@ -214,6 +251,11 @@ function navigateTo(path: string) {
 
 .nav-item--active {
   background: rgba(59, 130, 246, 0.15);
+}
+
+.nav-item--admin {
+  margin-top: 12px;
+  border: 1px dashed rgba(139, 92, 246, 0.5);
 }
 
 .nav-item__icon {
@@ -257,7 +299,6 @@ function navigateTo(path: string) {
   animation: scaleIn 0.3s ease;
 }
 
-/* User card */
 .sidebar__footer {
   padding: 16px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
@@ -302,7 +343,6 @@ function navigateTo(path: string) {
   color: var(--sidebar-text);
 }
 
-/* Main content */
 .main {
   flex: 1;
   padding: 24px;
@@ -318,7 +358,19 @@ function navigateTo(path: string) {
   margin-left: 72px;
 }
 
-/* Page transition */
+.guest-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: 10px;
+  color: #d97706;
+  font-size: 13px;
+}
+
 .page-enter-active {
   animation: fadeInUp 0.35s ease both;
 }
@@ -327,7 +379,6 @@ function navigateTo(path: string) {
   animation: fadeInUp 0.15s ease reverse both;
 }
 
-/* Fade transition for sidebar labels */
 .fade-enter-active, .fade-leave-active {
   transition: opacity 0.2s ease;
 }
@@ -335,7 +386,6 @@ function navigateTo(path: string) {
   opacity: 0;
 }
 
-/* Mobile tabbar */
 .mobile-tabbar {
   box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06) !important;
 }

@@ -2,12 +2,14 @@ import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards } from '@n
 import { AuthGuard } from '@nestjs/passport';
 import { UsersService } from './users.service';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { ApprovalGuard } from '../../common/guards/approval.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { AllowPending } from '../../common/decorators/allow-pending.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RoleLevel } from '../../entities';
 
 @Controller('api/users')
-@UseGuards(AuthGuard('jwt'), RolesGuard)
+@UseGuards(AuthGuard('jwt'), ApprovalGuard, RolesGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -18,6 +20,7 @@ export class UsersController {
   }
 
   @Get('me')
+  @AllowPending()
   getMe(@CurrentUser() user: { id: string }) {
     return this.usersService.findById(user.id);
   }
@@ -54,11 +57,12 @@ export class UsersController {
 }
 
 @Controller('api/organization')
-@UseGuards(AuthGuard('jwt'), RolesGuard)
+@UseGuards(AuthGuard('jwt'), ApprovalGuard, RolesGuard)
 export class OrganizationController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get('groups')
+  @AllowPending()
   getGroups() {
     return this.usersService.findAllGroups();
   }
@@ -76,6 +80,7 @@ export class OrganizationController {
   }
 
   @Get('divisions')
+  @AllowPending()
   getDivisions() {
     return this.usersService.findAllDivisions();
   }
@@ -93,6 +98,7 @@ export class OrganizationController {
   }
 
   @Get('structure')
+  @AllowPending()
   getStructure() {
     return this.usersService.getOrganizationStructure();
   }

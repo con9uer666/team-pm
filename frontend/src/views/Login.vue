@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { showFailToast, showSuccessToast } from 'vant'
 import { useAuthStore } from '../stores/auth'
+import { orgApi, type GroupInfo } from '../api/users'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -12,36 +13,66 @@ const username = ref('')
 const password = ref('')
 const realName = ref('')
 const email = ref('')
+const groupIds = ref<string[]>([])
 const loading = ref(false)
+const availableGroups = ref<GroupInfo[]>([])
+const showGroupPicker = ref(false)
+
+const groupNames = computed(() =>
+  availableGroups.value
+    .filter(g => groupIds.value.includes(g.id))
+    .map(g => g.name)
+    .join('、')
+)
+
+async function ensureGroups() {
+  if (availableGroups.value.length) return
+  try {
+    availableGroups.value = await orgApi.getGroups()
+  } catch (e: any) {
+    showFailToast(e?.message || '加载技术组失败')
+  }
+}
+
+function toggleRegister() {
+  isRegister.value = !isRegister.value
+  if (isRegister.value) ensureGroups()
+}
+
+function confirmGroups(val: string[]) {
+  groupIds.value = val
+  showGroupPicker.value = false
+}
 
 async function handleSubmit() {
   if (!username.value || !password.value) {
     showFailToast('请填写用户名和密码')
     return
   }
-  if (isRegister.value && !realName.value) {
-    showFailToast('请填写真实姓名')
-    return
-  }
-  if (isRegister.value && !email.value) {
-    showFailToast('请填写邮箱')
-    return
-  }
-  if (isRegister.value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) {
-    showFailToast('邮箱格式不正确')
-    return
+  if (isRegister.value) {
+    if (!realName.value) return showFailToast('请填写真实姓名')
+    if (!email.value) return showFailToast('请填写邮箱')
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) return showFailToast('邮箱格式不正确')
+    if (!groupIds.value.length) return showFailToast('请至少选择一个技术组')
   }
 
   loading.value = true
   try {
     if (isRegister.value) {
-      await auth.register(username.value, password.value, realName.value, email.value)
-      showSuccessToast('注册成功')
+      await auth.register(username.value, password.value, realName.value, email.value, groupIds.value)
+      showSuccessToast('注册成功，等待审核')
+      router.replace('/pending')
     } else {
       await auth.login(username.value, password.value)
       showSuccessToast('登录成功')
+      if (auth.isGuest) {
+        router.replace('/pending')
+      } else if (auth.canAdmin && auth.adminMode) {
+        router.replace('/admin')
+      } else {
+        router.replace('/')
+      }
     }
-    router.push('/')
   } catch (e: any) {
     const msg = typeof e === 'string' ? e : (e?.message || '操作失败')
     showFailToast(msg)
@@ -49,6 +80,10 @@ async function handleSubmit() {
     loading.value = false
   }
 }
+
+onMounted(() => {
+  if (isRegister.value) ensureGroups()
+})
 </script>
 
 <template>
@@ -86,7 +121,39 @@ async function handleSubmit() {
           placeholder="请输入邮箱"
           type="email"
         />
+        <van-field
+          v-if="isRegister"
+          readonly
+          is-link
+          label="技术组"
+          :model-value="groupNames"
+          placeholder="请至少选择一个技术组"
+          @click="ensureGroups(); showGroupPicker = true"
+        />
       </van-cell-group>
+
+      <van-action-sheet v-model:show="showGroupPicker" title="选择技术组">
+        <div class="group-picker">
+          <van-checkbox-group v-model="groupIds">
+            <van-cell-group>
+              <van-cell
+                v-for="g in availableGroups"
+                :key="g.id"
+                :title="g.name"
+                clickable
+                @click="groupIds = groupIds.includes(g.id) ? groupIds.filter(i => i !== g.id) : [...groupIds, g.id]"
+              >
+                <template #right-icon>
+                  <van-checkbox :name="g.id" @click.stop />
+                </template>
+              </van-cell>
+            </van-cell-group>
+          </van-checkbox-group>
+          <div class="picker-actions">
+            <van-button block type="primary" @click="confirmGroups(groupIds)">确定</van-button>
+          </div>
+        </div>
+      </van-action-sheet>
 
       <div class="actions">
         <van-button
@@ -100,12 +167,16 @@ async function handleSubmit() {
         <van-button
           plain
           block
-          @click="isRegister = !isRegister"
+          @click="toggleRegister"
           class="switch-btn"
         >
           {{ isRegister ? '已有账号？去登录' : '没有账号？去注册' }}
         </van-button>
       </div>
+
+      <p v-if="isRegister" class="hint">
+        兵种组（步兵/英雄/工程）由项管或队长在审核时分配，无需在此选择。
+      </p>
     </div>
   </div>
 </template>
@@ -165,5 +236,23 @@ async function handleSubmit() {
 
 .switch-btn {
   margin-top: 12px;
+}
+
+.hint {
+  margin: 16px 0 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.group-picker {
+  padding: 16px 0 20px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.picker-actions {
+  padding: 16px;
 }
 </style>

@@ -15,6 +15,12 @@ export enum UserStatus {
   PROBATION = 'probation',
 }
 
+export enum ApprovalStatus {
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+}
+
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
@@ -58,6 +64,18 @@ export class User {
 
   @Column({ name: 'is_super_admin', default: false })
   isSuperAdmin: boolean;
+
+  @Column({ name: 'approval_status', type: 'varchar', length: 20, default: ApprovalStatus.PENDING })
+  approvalStatus: ApprovalStatus;
+
+  @Column({ name: 'approval_reviewer_id', type: 'uuid', nullable: true })
+  approvalReviewerId: string | null;
+
+  @Column({ name: 'approval_reviewed_at', type: 'timestamp', nullable: true })
+  approvalReviewedAt: Date | null;
+
+  @Column({ name: 'approval_reject_reason', type: 'text', nullable: true })
+  approvalRejectReason: string | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

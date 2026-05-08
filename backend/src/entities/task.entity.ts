@@ -30,6 +30,9 @@ export class Task {
   @Column({ name: 'group_id', type: 'uuid', nullable: true })
   groupId: string | null;
 
+  @Column({ name: 'objective_id', type: 'uuid', nullable: true })
+  objectiveId: string | null;
+
   @Column({ name: 'completion_requirements', type: 'text', nullable: true })
   completionRequirements: string | null;
 

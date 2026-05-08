@@ -109,8 +109,12 @@ async function handleLogout() {
       </van-cell>
     </van-cell-group>
 
-    <van-cell-group v-if="(auth.user?.roleLevel || 0) >= 4" inset class="animate-fade-in-up stagger-2" style="margin-top: 12px;">
-      <van-cell title="成员管理" is-link @click="router.push('/admin/members')" />
+    <van-cell-group v-if="auth.canAdmin" inset class="animate-fade-in-up stagger-2" style="margin-top: 12px;">
+      <van-cell title="进入管理后台">
+        <template #value>
+          <van-switch :model-value="auth.adminMode" size="20" @update:model-value="(v: boolean) => { auth.setAdminMode(v); if (v) router.push('/admin') }" />
+        </template>
+      </van-cell>
     </van-cell-group>
 
     <van-cell-group inset class="animate-fade-in-up stagger-2" style="margin-top: 12px;">

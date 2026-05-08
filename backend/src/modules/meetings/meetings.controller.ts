@@ -2,12 +2,13 @@ import { Controller, Get, Post, Patch, Param, Body, UseGuards } from '@nestjs/co
 import { AuthGuard } from '@nestjs/passport';
 import { MeetingsService } from './meetings.service';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { ApprovalGuard } from '../../common/guards/approval.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RoleLevel, MeetingScope } from '../../entities';
 
 @Controller('api/meetings')
-@UseGuards(AuthGuard('jwt'), RolesGuard)
+@UseGuards(AuthGuard('jwt'), ApprovalGuard, RolesGuard)
 export class MeetingsController {
   constructor(private readonly service: MeetingsService) {}
 

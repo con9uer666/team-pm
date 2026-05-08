@@ -6,11 +6,13 @@ import { ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
-import { User } from '../../entities';
+import { User, Group } from '../../entities';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { ApprovalGuard } from '../../common/guards/approval.guard';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User]),
+    TypeOrmModule.forFeature([User, Group]),
     PassportModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
@@ -19,9 +21,10 @@ import { User } from '../../entities';
         signOptions: { expiresIn: '7d' },
       }),
     }),
+    NotificationsModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, ApprovalGuard],
   exports: [AuthService],
 })
 export class AuthModule {}

@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../../entities';
 import { WechatService } from './wechat.service';
+import { ApprovalGuard } from '../../common/guards/approval.guard';
 
 @Controller('api/wechat')
 export class WechatController {
@@ -16,7 +17,7 @@ export class WechatController {
   ) {}
 
   @Get('bind-qrcode')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'), ApprovalGuard)
   async getBindQrcode(@Req() req: any) {
     const userId = req.user.id;
     const url = await this.wechatService.createBindQrcode(userId);

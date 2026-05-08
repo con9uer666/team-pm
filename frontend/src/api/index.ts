@@ -10,6 +10,7 @@ export interface RegisterDto {
   password: string
   realName: string
   email: string
+  groupIds: string[]
 }
 
 export interface AuthResponse {
@@ -19,6 +20,7 @@ export interface AuthResponse {
     realName: string
     roleLevel: number
     isSuperAdmin: boolean
+    approvalStatus: 'pending' | 'approved' | 'rejected'
     wechatWorkId?: string | null
     email?: string | null
   }

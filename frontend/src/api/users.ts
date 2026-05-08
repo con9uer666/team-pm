@@ -10,6 +10,8 @@ export interface UserInfo {
   status: string
   phone: string | null
   isSuperAdmin: boolean
+  approvalStatus: 'pending' | 'approved' | 'rejected'
+  approvalRejectReason?: string | null
   wechatWorkId?: string | null
   email?: string | null
 }
