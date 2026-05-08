@@ -56,11 +56,15 @@ export class AppModule implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    const cutoff = new Date('2026-05-09T00:00:00Z');
     const result = await this.userRepo
       .createQueryBuilder()
       .update(User)
       .set({ approvalStatus: ApprovalStatus.APPROVED })
-      .where('approval_status IS NULL')
+      .where('approval_status = :pending AND created_at < :cutoff', {
+        pending: ApprovalStatus.PENDING,
+        cutoff,
+      })
       .execute();
     if (result.affected && result.affected > 0) {
       this.logger.log(`Legacy users auto-approved: ${result.affected}`);
