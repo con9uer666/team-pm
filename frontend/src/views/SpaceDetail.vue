@@ -6,6 +6,7 @@ import { useAuthStore } from '../stores/auth'
 import { spacesApi, type SpaceDetail } from '../api/spaces'
 import { objectivesApi, type Objective } from '../api/objectives'
 import { orgApi, type GroupInfo, type DivisionInfo } from '../api/users'
+import type { Task } from '../api/tasks'
 import { roleLabel } from '../composables/useRoleLabel'
 
 const route = useRoute()
@@ -28,6 +29,28 @@ const newDesc = ref('')
 const newDue = ref<Date | null>(null)
 const showDatePicker = ref(false)
 const creating = ref(false)
+
+const expandedObjId = ref<string | null>(null)
+const objTasksMap = ref<Record<string, Task[]>>({})
+
+async function toggleExpand(o: Objective) {
+  if (expandedObjId.value === o.id) {
+    expandedObjId.value = null
+    return
+  }
+  expandedObjId.value = o.id
+  if (!objTasksMap.value[o.id]) {
+    try {
+      objTasksMap.value[o.id] = await objectivesApi.getTasks(o.id)
+    } catch (e: any) {
+      showFailToast(e?.message || '加载任务失败')
+    }
+  }
+}
+
+function gotoCreateTask(o: Objective) {
+  router.push({ name: 'tasks', query: { prefillObjective: o.id } })
+}
 
 const canDeliver = computed(() => {
   if (!detail.value || !auth.user) return false
@@ -114,6 +137,7 @@ async function completeObjective(o: Objective) {
   try {
     await objectivesApi.complete(o.id)
     showToast('已标记完成')
+    delete objTasksMap.value[o.id]
     await load()
   } catch (e: any) {
     showFailToast(e?.message || '操作失败')
@@ -125,6 +149,8 @@ async function removeObjective(o: Objective) {
   try {
     await objectivesApi.remove(o.id)
     showToast('已删除')
+    delete objTasksMap.value[o.id]
+    if (expandedObjId.value === o.id) expandedObjId.value = null
     await load()
   } catch (e: any) {
     showFailToast(e?.message || '删除失败')
@@ -173,7 +199,12 @@ onMounted(load)
             <van-button type="primary" size="small" icon="plus" @click="openCreate">下达目标</van-button>
           </div>
           <van-empty v-if="!detail.objectives.length" description="暂无目标" />
-          <div v-for="o in detail.objectives" :key="o.id" class="obj-card">
+          <div
+            v-for="o in detail.objectives"
+            :key="o.id"
+            class="obj-card"
+            @click="toggleExpand(o)"
+          >
             <div class="obj-head">
               <div class="obj-title">{{ o.title }}</div>
               <van-tag :type="o.status === 'completed' ? 'success' : 'primary'">
@@ -188,18 +219,36 @@ onMounted(load)
                 <span v-if="o.manuallyCompleted"> · 手动完成</span>
               </span>
             </div>
-            <div class="obj-foot">
+            <div class="obj-foot" @click.stop>
               <span>截止 {{ fmtDate(o.dueDate) }}</span>
-              <div v-if="canDeliver" class="foot-actions">
+              <div class="foot-actions">
                 <van-button
                   v-if="o.status !== 'completed'"
                   size="mini"
-                  type="success"
+                  type="primary"
                   plain
-                  @click="completeObjective(o)"
-                >标记完成</van-button>
-                <van-button size="mini" type="danger" plain @click="removeObjective(o)">删除</van-button>
+                  @click="gotoCreateTask(o)"
+                >新建任务</van-button>
+                <template v-if="canDeliver">
+                  <van-button
+                    v-if="o.status !== 'completed'"
+                    size="mini"
+                    type="success"
+                    plain
+                    @click="completeObjective(o)"
+                  >标记完成</van-button>
+                  <van-button size="mini" type="danger" plain @click="removeObjective(o)">删除</van-button>
+                </template>
               </div>
+            </div>
+            <div v-if="expandedObjId === o.id" class="obj-tasks" @click.stop>
+              <van-empty v-if="!(objTasksMap[o.id] || []).length" description="该目标暂无任务" />
+              <van-cell
+                v-for="t in objTasksMap[o.id] || []"
+                :key="t.id"
+                :title="t.title"
+                :label="`${t.status} · 截止 ${fmtDate(t.dueDate)}`"
+              />
             </div>
           </div>
         </div>
@@ -394,6 +443,12 @@ onMounted(load)
 .foot-actions {
   display: flex;
   gap: 6px;
+}
+
+.obj-tasks {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
 }
 
 .create-panel {

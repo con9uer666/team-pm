@@ -2,7 +2,7 @@ import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/commo
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan, LessThanOrEqual, IsNull, In } from 'typeorm';
 import { Cron } from '@nestjs/schedule';
-import { Task, TaskStatus, TaskDependency, TaskReview, ReviewType, ReviewStatus, User, RoleLevel, Division, Group, NotificationType } from '../../entities';
+import { Task, TaskStatus, TaskDependency, TaskReview, ReviewType, ReviewStatus, User, RoleLevel, Division, Group, NotificationType, Objective, ObjectiveScope, ObjectiveStatus } from '../../entities';
 import { NotificationsService } from '../notifications/notifications.service';
 import { WechatService } from '../wechat/wechat.service';
 
@@ -21,6 +21,8 @@ export class TasksService {
     private readonly divisionRepo: Repository<Division>,
     @InjectRepository(Group)
     private readonly groupRepo: Repository<Group>,
+    @InjectRepository(Objective)
+    private readonly objectiveRepo: Repository<Objective>,
     private readonly notifications: NotificationsService,
     private readonly wechat: WechatService,
   ) {}
@@ -31,6 +33,7 @@ export class TasksService {
     content?: string;
     divisionId?: string;
     groupId?: string;
+    objectiveId?: string;
     completionRequirements?: string;
     dueDate: string;
     priority?: number;
@@ -80,6 +83,10 @@ export class TasksService {
       }
     }
 
+    if (dto.objectiveId) {
+      await this.assertObjectiveCompatible(dto.objectiveId, dto.divisionId, dto.groupId);
+    }
+
     const now = new Date();
     const task = new Task();
     task.title = dto.title;
@@ -87,6 +94,7 @@ export class TasksService {
     task.content = dto.content || null;
     task.divisionId = dto.divisionId || null;
     task.groupId = dto.groupId || null;
+    task.objectiveId = dto.objectiveId || null;
     task.completionRequirements = dto.completionRequirements || null;
     task.creatorId = userId;
     task.assigneeId = assigneeId;
@@ -301,6 +309,48 @@ export class TasksService {
     await this.reviewRepo.delete({ taskId });
     await this.taskRepo.remove(task);
     return { message: '任务已删除' };
+  }
+
+  async updateObjective(taskId: string, userId: string, objectiveId: string | null) {
+    const task = await this.findById(taskId);
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('用户不存在');
+
+    let isLeaderForTask = false;
+    if (task.divisionId) {
+      const division = await this.divisionRepo.findOne({ where: { id: task.divisionId } });
+      if (division?.leaderIds?.includes(userId)) isLeaderForTask = true;
+    }
+    if (!isLeaderForTask && task.groupId) {
+      const group = await this.groupRepo.findOne({ where: { id: task.groupId } });
+      if (group?.leaderIds?.includes(userId)) isLeaderForTask = true;
+    }
+    const canManage = user.isSuperAdmin || user.roleLevel >= RoleLevel.PROJECT_MANAGER || isLeaderForTask;
+    if (!canManage) throw new ForbiddenException('无权修改该任务的关联目标');
+
+    if (objectiveId) {
+      await this.assertObjectiveCompatible(objectiveId, task.divisionId, task.groupId);
+    }
+    task.objectiveId = objectiveId;
+    return this.taskRepo.save(task);
+  }
+
+  private async assertObjectiveCompatible(
+    objectiveId: string,
+    divisionId?: string | null,
+    groupId?: string | null,
+  ) {
+    const obj = await this.objectiveRepo.findOne({ where: { id: objectiveId } });
+    if (!obj) throw new NotFoundException('阶段性目标不存在');
+    if (obj.status !== ObjectiveStatus.ACTIVE) {
+      throw new ForbiddenException('目标已结束，无法关联');
+    }
+    if (obj.scope === ObjectiveScope.GROUP && obj.groupId !== groupId) {
+      throw new ForbiddenException('任务必须属于该目标对应的技术组');
+    }
+    if (obj.scope === ObjectiveScope.DIVISION && obj.divisionId !== divisionId) {
+      throw new ForbiddenException('任务必须属于该目标对应的兵种组');
+    }
   }
 
   async complete(taskId: string, userId: string, attachments: string[], note?: string) {

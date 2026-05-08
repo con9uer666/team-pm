@@ -91,6 +91,9 @@ export const tasksApi = {
   resubmit: (id: string, dto: { title?: string; description?: string; dueDate?: string }): Promise<Task> =>
     http.patch(`/tasks/${id}/resubmit`, dto),
 
+  updateObjective: (id: string, objectiveId: string | null): Promise<Task> =>
+    http.patch(`/tasks/${id}/objective`, { objectiveId }),
+
   deleteTask: (id: string): Promise<void> =>
     http.delete(`/tasks/${id}`),
 }

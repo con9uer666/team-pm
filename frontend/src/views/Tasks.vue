@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { showToast } from 'vant'
 import { tasksApi, type Task, type TaskWithMeta, type TaskReviewInfo, type CreateTaskDto } from '../api/tasks'
 import { usersApi, orgApi, type UserInfo, type GroupInfo, type DivisionInfo } from '../api/users'
+import { objectivesApi, type Objective } from '../api/objectives'
 import { useAuthStore } from '../stores/auth'
 import TaskCard from '../components/TaskCard.vue'
 import FileUploader from '../components/FileUploader.vue'
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
 const activeTab = ref(0)
 const statusFilter = ref('')
@@ -131,12 +133,39 @@ const newTask = ref<CreateTaskDto & { selectedDeps: string[] }>({
   title: '',
   divisionId: undefined,
   groupId: undefined,
+  objectiveId: undefined,
   completionRequirements: '',
   dueDate: '',
   dependencyIds: [],
   selectedDeps: [],
 })
 const showDepPicker = ref(false)
+const objectives = ref<Objective[]>([])
+let objectivesLoaded = false
+
+async function ensureObjectives() {
+  if (objectivesLoaded) return
+  try {
+    objectives.value = await objectivesApi.list({})
+    objectivesLoaded = true
+  } catch (e: any) {
+    showToast({ message: e?.message || '加载目标失败', type: 'fail' })
+  }
+}
+
+const eligibleObjectives = computed(() =>
+  objectives.value.filter(o =>
+    o.status === 'active' && (
+      (o.scope === 'group' && !!newTask.value.groupId && o.groupId === newTask.value.groupId) ||
+      (o.scope === 'division' && !!newTask.value.divisionId && o.divisionId === newTask.value.divisionId)
+    )
+  )
+)
+
+function openCreate() {
+  showCreate.value = true
+  ensureObjectives()
+}
 
 function onAssignModeChange(val: boolean) {
   if (!val) {
@@ -329,6 +358,7 @@ async function createTask() {
       groupId: newTask.value.groupId,
       completionRequirements: newTask.value.completionRequirements,
     }
+    if (newTask.value.objectiveId) dto.objectiveId = newTask.value.objectiveId
     if (newTask.value.selectedDeps.length) dto.dependencyIds = newTask.value.selectedDeps
     if (newTask.value.assigneeId) dto.assigneeId = newTask.value.assigneeId
 
@@ -338,7 +368,7 @@ async function createTask() {
     isAssignMode.value = false
     selectedLeaderRole.value = null
     selectedAssigneeId.value = ''
-    newTask.value = { title: '', divisionId: undefined, groupId: undefined, completionRequirements: '', dueDate: '', dependencyIds: [], selectedDeps: [] }
+    newTask.value = { title: '', divisionId: undefined, groupId: undefined, objectiveId: undefined, completionRequirements: '', dueDate: '', dependencyIds: [], selectedDeps: [] }
     await loadData()
   } catch (e: any) {
     showToast({ message: e.message || '创建失败', type: 'fail' })
@@ -377,10 +407,43 @@ async function openDetail(id: string) {
     detailTask.value = t
     detailReviews.value = revs
     detailDeps.value = deps
+    ensureObjectives()
   } catch (e: any) {
     showToast({ message: e.message || '加载失败', type: 'fail' })
   } finally {
     detailLoading.value = false
+  }
+}
+
+const showObjectivePicker = ref(false)
+
+const detailObjectiveTitle = computed(() => {
+  const oid = detailTask.value?.objectiveId
+  if (!oid) return ''
+  return objectives.value.find(o => o.id === oid)?.title || ''
+})
+
+const detailEligibleObjectives = computed(() => {
+  const t = detailTask.value
+  if (!t) return []
+  return objectives.value.filter(o =>
+    o.status === 'active' && (
+      (o.scope === 'group' && !!t.groupId && o.groupId === t.groupId) ||
+      (o.scope === 'division' && !!t.divisionId && o.divisionId === t.divisionId)
+    )
+  )
+})
+
+async function changeObjective(objectiveId: string | null) {
+  if (!detailTask.value) return
+  try {
+    const updated = await tasksApi.updateObjective(detailTask.value.id, objectiveId)
+    detailTask.value = { ...detailTask.value, objectiveId: updated.objectiveId }
+    showObjectivePicker.value = false
+    showToast({ message: '已更新', type: 'success' })
+    await loadData()
+  } catch (e: any) {
+    showToast({ message: e?.message || '操作失败', type: 'fail' })
   }
 }
 
@@ -482,7 +545,24 @@ function ganttBarStyle(task: TaskWithMeta) {
   return { left: `${left}%`, width: `${Math.max(width, 1.5)}%`, background: color, totalDays, overflowLeft, overflowRight }
 }
 
-onMounted(loadData)
+onMounted(async () => {
+  await loadData()
+  const prefillId = typeof route.query.prefillObjective === 'string' ? route.query.prefillObjective : null
+  if (prefillId) {
+    await ensureObjectives()
+    const obj = objectives.value.find(o => o.id === prefillId)
+    if (obj) {
+      if (obj.scope === 'group' && obj.groupId) {
+        newTask.value.groupId = obj.groupId
+      } else if (obj.scope === 'division' && obj.divisionId) {
+        newTask.value.divisionId = obj.divisionId
+      }
+      newTask.value.objectiveId = obj.id
+      showCreate.value = true
+    }
+    router.replace({ query: {} })
+  }
+})
 </script>
 
 <template>
@@ -490,7 +570,7 @@ onMounted(loadData)
     <div class="page-header">
       <h2>任务中心</h2>
       <div class="header-actions">
-        <van-button size="small" type="primary" @click="showCreate = true">创建任务</van-button>
+        <van-button size="small" type="primary" @click="openCreate">创建任务</van-button>
       </div>
     </div>
 
@@ -720,6 +800,19 @@ onMounted(loadData)
           </van-cell-group>
 
           <van-cell-group inset style="margin-top: 10px;">
+            <van-field label="关联目标">
+              <template #input>
+                <select v-model="newTask.objectiveId" class="native-select">
+                  <option :value="undefined">不关联</option>
+                  <option v-for="o in eligibleObjectives" :key="o.id" :value="o.id">
+                    {{ o.scope === 'group' ? '[技术组] ' : '[兵种] ' }}{{ o.title }}
+                  </option>
+                </select>
+              </template>
+            </van-field>
+          </van-cell-group>
+
+          <van-cell-group inset style="margin-top: 10px;">
             <van-cell title="关联任务" is-link @click="showDepPicker = true" :value="newTask.selectedDeps.length ? `已选${newTask.selectedDeps.length}个` : '无'" />
             <van-cell v-for="depId in newTask.selectedDeps" :key="depId" :title="getDepTaskTitle(depId)">
               <template #right-icon>
@@ -781,6 +874,19 @@ onMounted(loadData)
           <div class="detail-info-item"><span class="label">截止日期</span><span :class="{ 'text-red': detailTask.status === 'overdue' }">{{ formatDateTime(detailTask.dueDate) }}</span></div>
         </div>
 
+        <div class="detail-section detail-objective-row">
+          <h4>关联目标</h4>
+          <div class="detail-obj-value">
+            <span>{{ detailObjectiveTitle || '未关联' }}</span>
+            <van-button
+              v-if="isLeader || isManager"
+              size="mini"
+              plain
+              @click="showObjectivePicker = true"
+            >{{ detailTask.objectiveId ? '修改' : '关联' }}</van-button>
+          </div>
+        </div>
+
         <div v-if="detailTask.description" class="detail-section">
           <h4>任务描述</h4>
           <p>{{ detailTask.description }}</p>
@@ -836,6 +942,39 @@ onMounted(loadData)
         </div>
       </div>
     </van-popup>
+
+    <!-- 关联目标选择器 -->
+    <van-popup v-model:show="showObjectivePicker" position="bottom" round style="max-height: 60vh;">
+      <van-nav-bar
+        title="关联阶段性目标"
+        left-text="取消"
+        @click-left="showObjectivePicker = false"
+      />
+      <div style="overflow-y: auto; max-height: calc(60vh - 46px);">
+        <van-cell
+          title="不关联"
+          clickable
+          @click="changeObjective(null)"
+        >
+          <template #right-icon>
+            <van-icon v-if="!detailTask?.objectiveId" name="success" color="#1989fa" size="20" />
+          </template>
+        </van-cell>
+        <van-empty v-if="!detailEligibleObjectives.length" description="该兵种/技术组下暂无可关联目标" />
+        <van-cell
+          v-for="o in detailEligibleObjectives"
+          :key="o.id"
+          :title="o.title"
+          :label="o.scope === 'group' ? '技术组目标' : '兵种目标'"
+          clickable
+          @click="changeObjective(o.id)"
+        >
+          <template #right-icon>
+            <van-icon v-if="detailTask?.objectiveId === o.id" name="success" color="#1989fa" size="20" />
+          </template>
+        </van-cell>
+      </div>
+    </van-popup>
   </div>
 </template>
 
@@ -856,6 +995,15 @@ onMounted(loadData)
   font-size: 22px;
   font-weight: 700;
   margin: 0;
+  color: var(--text-primary);
+}
+
+.detail-objective-row .detail-obj-value {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
   color: var(--text-primary);
 }
 

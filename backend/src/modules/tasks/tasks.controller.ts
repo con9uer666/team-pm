@@ -151,6 +151,16 @@ export class TasksController {
     return this.tasksService.resubmit(id, user.id, dto);
   }
 
+  @Patch(':id/objective')
+  @Roles(RoleLevel.GROUP_LEADER)
+  updateObjective(
+    @Param('id') id: string,
+    @Body() dto: { objectiveId: string | null },
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.tasksService.updateObjective(id, user.id, dto.objectiveId ?? null);
+  }
+
   @Delete(':id')
   delete(@Param('id') id: string, @CurrentUser() user: { id: string }) {
     return this.tasksService.deleteTask(id, user.id);

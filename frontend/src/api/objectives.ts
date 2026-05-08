@@ -1,4 +1,5 @@
 import http from './http'
+import type { Task } from './tasks'
 
 export type ObjectiveScope = 'division' | 'group'
 export type ObjectiveStatus = 'active' | 'completed' | 'cancelled'
@@ -42,7 +43,7 @@ export const objectivesApi = {
   list: (query: { scope?: ObjectiveScope; divisionId?: string; groupId?: string } = {}): Promise<Objective[]> =>
     http.get('/objectives', { params: query }),
   get: (id: string): Promise<Objective> => http.get(`/objectives/${id}`),
-  getTasks: (id: string) => http.get(`/objectives/${id}/tasks`),
+  getTasks: (id: string): Promise<Task[]> => http.get(`/objectives/${id}/tasks`),
   update: (id: string, dto: UpdateObjectiveDto): Promise<Objective> =>
     http.patch(`/objectives/${id}`, dto),
   complete: (id: string): Promise<Objective> => http.patch(`/objectives/${id}/complete`),
