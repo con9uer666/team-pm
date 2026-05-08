@@ -37,6 +37,13 @@
   --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-bounce: 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  --van-toast-background: rgba(0, 0, 0, 0.8);
+  --van-toast-text-color: #fff;
+  --van-toast-loading-icon-color: #fff;
+  --van-dialog-background: #fff;
+  --van-dialog-header-text-color: #1e293b;
+  --van-dialog-message-text-color: #1e293b;
 }
 
 * {
@@ -235,13 +242,46 @@ body {
   max-width: 70% !important;
   padding: 12px 24px !important;
   word-break: break-word !important;
+  background: rgba(0, 0, 0, 0.8) !important;
+  color: #fff !important;
 }
 
 .van-toast--text {
   min-width: 96px !important;
 }
 
-.van-toast .van-toast__text {
+.van-toast .van-toast__text,
+.van-toast__text {
   font-size: 14px !important;
   color: #fff !important;
+}
+
+.van-toast .van-toast__icon,
+.van-toast__icon {
+  color: #fff !important;
+}
+
+.van-toast--success,
+.van-toast--fail,
+.van-toast--loading,
+.van-toast--html {
+  background: rgba(0, 0, 0, 0.8) !important;
+  color: #fff !important;
+}
+
+.van-dialog {
+  background: #fff !important;
+}
+
+.van-dialog__header {
+  color: #1e293b !important;
+}
+
+.van-dialog__message {
+  color: #1e293b !important;
+}
+
+.van-dialog__cancel,
+.van-dialog__confirm {
+  background: #fff !important;
 }
