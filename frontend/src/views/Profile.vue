@@ -1,6 +1,10 @@
 <script setup lang="ts">
+import { ref, computed, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
+import { showToast } from 'vant'
 import { useAuthStore } from '../stores/auth'
+import { wechatApi } from '../api/wechat'
+import { usersApi } from '../api/users'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -13,6 +17,65 @@ const roleNames: Record<number, string> = {
   5: '队长',
   6: '指导老师',
 }
+
+const showBind = ref(false)
+const qrcodeUrl = ref('')
+const loadingQr = ref(false)
+let pollTimer: number | null = null
+
+const bound = computed(() => !!auth.user?.wechatWorkId)
+
+async function handleBindClick() {
+  loadingQr.value = true
+  showBind.value = true
+  qrcodeUrl.value = ''
+  try {
+    const res = await wechatApi.getBindQrcode()
+    if (!res.success || !res.qrcodeUrl) {
+      showToast({ message: res.message || '生成二维码失败', type: 'fail' })
+      showBind.value = false
+      return
+    }
+    qrcodeUrl.value = res.qrcodeUrl
+    startPolling()
+  } catch (e: any) {
+    showToast({ message: e.message || '生成二维码失败', type: 'fail' })
+    showBind.value = false
+  } finally {
+    loadingQr.value = false
+  }
+}
+
+function startPolling() {
+  stopPolling()
+  pollTimer = window.setInterval(async () => {
+    try {
+      const me = await usersApi.getMe()
+      if (me.wechatWorkId) {
+        auth.user = me
+        stopPolling()
+        showBind.value = false
+        showToast({ message: '绑定成功', type: 'success' })
+      }
+    } catch {
+      /* ignore */
+    }
+  }, 3000)
+}
+
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+
+function closeBind() {
+  showBind.value = false
+  stopPolling()
+}
+
+onBeforeUnmount(stopPolling)
 
 async function handleLogout() {
   await auth.logout()
@@ -36,6 +99,15 @@ async function handleLogout() {
       <van-cell title="角色" :value="roleNames[auth.user?.roleLevel || 1]" />
     </van-cell-group>
 
+    <van-cell-group inset class="animate-fade-in-up stagger-2" style="margin-top: 12px;">
+      <van-cell title="微信通知">
+        <template #value>
+          <span v-if="bound" style="color: #52c41a;">已绑定</span>
+          <van-button v-else size="mini" type="primary" @click="handleBindClick">绑定</van-button>
+        </template>
+      </van-cell>
+    </van-cell-group>
+
     <van-cell-group v-if="(auth.user?.roleLevel || 0) >= 4" inset class="animate-fade-in-up stagger-2" style="margin-top: 12px;">
       <van-cell title="成员管理" is-link @click="router.push('/admin/members')" />
     </van-cell-group>
@@ -47,6 +119,23 @@ async function handleLogout() {
     <div class="animate-fade-in-up stagger-3" style="padding: 20px 16px;">
       <van-button type="danger" block round @click="handleLogout">退出登录</van-button>
     </div>
+
+    <van-popup v-model:show="showBind" round :close-on-click-overlay="false" style="padding: 24px; width: 300px;">
+      <div style="text-align: center;">
+        <h3 style="margin: 0 0 12px;">绑定微信通知</h3>
+        <p style="margin: 0 0 16px; color: #666; font-size: 13px;">
+          用微信扫码关注公众号后<br>自动完成绑定
+        </p>
+        <div v-if="loadingQr" style="padding: 40px 0;">
+          <van-loading />
+        </div>
+        <img v-else-if="qrcodeUrl" :src="qrcodeUrl" alt="bind-qr" style="width: 220px; height: 220px;" />
+        <p style="margin: 16px 0 12px; color: #999; font-size: 12px;">
+          关注成功后本页面会自动关闭
+        </p>
+        <van-button size="small" block @click="closeBind">取消</van-button>
+      </div>
+    </van-popup>
   </div>
 </template>
 

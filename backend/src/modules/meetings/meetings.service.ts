@@ -3,8 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
   Meeting, MeetingScope, MeetingStatus, AttendanceStatus,
-  MeetingParticipant, MeetingMinutes, User,
+  MeetingParticipant, MeetingMinutes, User, NotificationType,
 } from '../../entities';
+import { NotificationsService } from '../notifications/notifications.service';
+import { WechatService } from '../wechat/wechat.service';
 
 @Injectable()
 export class MeetingsService {
@@ -17,6 +19,8 @@ export class MeetingsService {
     private readonly minutesRepo: Repository<MeetingMinutes>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    private readonly notifications: NotificationsService,
+    private readonly wechat: WechatService,
   ) {}
 
   async create(organizerId: string, dto: {
@@ -51,6 +55,18 @@ export class MeetingsService {
     }));
     await this.participantRepo.save(records);
 
+    const notifyTargets = participants.filter(id => id !== organizerId);
+    if (notifyTargets.length) {
+      await this.notifications.createBatch(
+        notifyTargets,
+        NotificationType.MEETING_SCHEDULED,
+        `新会议：${saved.title}`,
+        `时间：${this.formatDate(saved.startTime)}${saved.location ? `\n地点：${saved.location}` : ''}`,
+        saved.id,
+        { wechatUrl: this.wechat.buildMeetingUrl(saved.id) },
+      );
+    }
+
     return saved;
   }
 
@@ -80,7 +96,22 @@ export class MeetingsService {
     const meeting = await this.findById(id);
     if (meeting.organizerId !== organizerId) throw new ForbiddenException('只有组织者可以开启会议');
     meeting.status = MeetingStatus.IN_PROGRESS;
-    return this.meetingRepo.save(meeting);
+    const saved = await this.meetingRepo.save(meeting);
+
+    const participants = await this.participantRepo.find({ where: { meetingId: id } });
+    const userIds = participants.map(p => p.userId).filter(uid => uid !== organizerId);
+    if (userIds.length) {
+      await this.notifications.createBatch(
+        userIds,
+        NotificationType.MEETING_STARTED,
+        `会议已开始：${meeting.title}`,
+        '请尽快前往签到',
+        meeting.id,
+        { wechatUrl: this.wechat.buildMeetingUrl(meeting.id) },
+      );
+    }
+
+    return saved;
   }
 
   async endMeeting(id: string, organizerId: string) {
@@ -147,6 +178,12 @@ export class MeetingsService {
 
   getMinutes(meetingId: string) {
     return this.minutesRepo.findOne({ where: { meetingId } });
+  }
+
+  private formatDate(d: Date | string): string {
+    const date = typeof d === 'string' ? new Date(d) : d;
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
   }
 
   private async getParticipantsByScope(scope: MeetingScope, groupId?: string, divisionId?: string): Promise<string[]> {

@@ -19,6 +19,8 @@ export interface AuthResponse {
     realName: string
     roleLevel: number
     isSuperAdmin: boolean
+    wechatWorkId?: string | null
+    email?: string | null
   }
 }
 

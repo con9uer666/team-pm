@@ -8,6 +8,7 @@ import { TasksModule } from './modules/tasks/tasks.module';
 import { MeetingsModule } from './modules/meetings/meetings.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
+import { WechatModule } from './modules/wechat/wechat.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { UploadsModule } from './modules/uploads/uploads.module';
     MeetingsModule,
     NotificationsModule,
     UploadsModule,
+    WechatModule,
   ],
 })
 export class AppModule {}

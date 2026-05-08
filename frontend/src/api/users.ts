@@ -10,6 +10,8 @@ export interface UserInfo {
   status: string
   phone: string | null
   isSuperAdmin: boolean
+  wechatWorkId?: string | null
+  email?: string | null
 }
 
 export interface GroupInfo {

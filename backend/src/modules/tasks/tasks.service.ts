@@ -1,8 +1,10 @@
 import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan, In } from 'typeorm';
+import { Repository, LessThan, LessThanOrEqual, IsNull, In } from 'typeorm';
 import { Cron } from '@nestjs/schedule';
-import { Task, TaskStatus, TaskDependency, TaskReview, ReviewType, ReviewStatus, User, RoleLevel, Division, Group } from '../../entities';
+import { Task, TaskStatus, TaskDependency, TaskReview, ReviewType, ReviewStatus, User, RoleLevel, Division, Group, NotificationType } from '../../entities';
+import { NotificationsService } from '../notifications/notifications.service';
+import { WechatService } from '../wechat/wechat.service';
 
 @Injectable()
 export class TasksService {
@@ -19,6 +21,8 @@ export class TasksService {
     private readonly divisionRepo: Repository<Division>,
     @InjectRepository(Group)
     private readonly groupRepo: Repository<Group>,
+    private readonly notifications: NotificationsService,
+    private readonly wechat: WechatService,
   ) {}
 
   async create(dto: {
@@ -145,6 +149,17 @@ export class TasksService {
       }
     }
 
+    if (isAssigning) {
+      await this.notifications.create(
+        assigneeId,
+        NotificationType.TASK_ASSIGNED,
+        `新任务：${saved.title}`,
+        `派发人：${user.realName}\n截止：${this.formatDate(saved.dueDate)}`,
+        saved.id,
+        { wechatUrl: this.wechat.buildTaskUrl(saved.id) },
+      );
+    }
+
     return saved;
   }
 
@@ -236,7 +251,16 @@ export class TasksService {
       task.status = TaskStatus.REJECTED;
       task.rejectedBy = reviewerId;
       task.rejectionReason = reason || null;
-      return this.taskRepo.save(task);
+      const saved = await this.taskRepo.save(task);
+      await this.notifications.create(
+        task.creatorId,
+        NotificationType.TASK_REJECTED,
+        `任务被驳回：${task.title}`,
+        reason ? `原因：${reason}` : '请查看详情',
+        task.id,
+        { wechatUrl: this.wechat.buildTaskUrl(task.id) },
+      );
+      return saved;
     }
 
     const allReviews = await this.reviewRepo.find({ where: { taskId: task.id } });
@@ -252,7 +276,18 @@ export class TasksService {
       task.status = depsCompleted ? TaskStatus.APPROVED : TaskStatus.BLOCKED;
       task.reviewedBy = reviewerId;
       task.reviewedAt = new Date();
-      return this.taskRepo.save(task);
+      const saved = await this.taskRepo.save(task);
+      if (task.status === TaskStatus.APPROVED) {
+        await this.notifications.create(
+          task.assigneeId,
+          NotificationType.TASK_APPROVED,
+          `任务已通过审核：${task.title}`,
+          `截止：${this.formatDate(task.dueDate)}`,
+          task.id,
+          { wechatUrl: this.wechat.buildTaskUrl(task.id) },
+        );
+      }
+      return saved;
     }
     return task;
   }
@@ -283,6 +318,20 @@ export class TasksService {
       task.overdueMinutes = Math.floor((task.completedAt.getTime() - task.dueDate.getTime()) / 60000);
     }
     const saved = await this.taskRepo.save(task);
+
+    const assignee = await this.userRepo.findOne({ where: { id: userId } });
+    const reviewerIds = await this.collectCompletionReviewers(task);
+    if (reviewerIds.length) {
+      await this.notifications.createBatch(
+        reviewerIds,
+        NotificationType.GENERAL,
+        `${assignee?.realName || '成员'} 提交结案待审`,
+        `任务：${task.title}`,
+        task.id,
+        { wechatUrl: this.wechat.buildTaskUrl(task.id) },
+      );
+    }
+
     return saved;
   }
 
@@ -304,6 +353,14 @@ export class TasksService {
       task.reviewedAt = new Date();
       const saved = await this.taskRepo.save(task);
       await this.unblockDependentTasks(taskId);
+      await this.notifications.create(
+        task.assigneeId,
+        NotificationType.GENERAL,
+        `结案已通过：${task.title}`,
+        '任务正式完成',
+        task.id,
+        { wechatUrl: this.wechat.buildTaskUrl(task.id) },
+      );
       return saved;
     } else {
       task.status = TaskStatus.APPROVED;
@@ -311,7 +368,16 @@ export class TasksService {
       task.completionNote = null;
       task.rejectionReason = reason || null;
       task.rejectedBy = reviewerId;
-      return this.taskRepo.save(task);
+      const saved = await this.taskRepo.save(task);
+      await this.notifications.create(
+        task.assigneeId,
+        NotificationType.GENERAL,
+        `结案被驳回：${task.title}`,
+        reason ? `原因：${reason}` : '请修改后重新提交',
+        task.id,
+        { wechatUrl: this.wechat.buildTaskUrl(task.id) },
+      );
+      return saved;
     }
   }
 
@@ -339,7 +405,67 @@ export class TasksService {
       task.status = TaskStatus.OVERDUE;
       task.overdueMinutes = Math.floor((now.getTime() - task.dueDate.getTime()) / 60000);
       await this.taskRepo.save(task);
+      await this.notifications.create(
+        task.assigneeId,
+        NotificationType.TASK_OVERDUE,
+        `任务已逾期：${task.title}`,
+        `原截止：${this.formatDate(task.dueDate)}`,
+        task.id,
+        { wechatUrl: this.wechat.buildTaskUrl(task.id) },
+      );
     }
+  }
+
+  @Cron('*/30 * * * *')
+  async checkUpcomingDeadlines() {
+    const now = new Date();
+    const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const candidates = await this.taskRepo.find({
+      where: [
+        { status: TaskStatus.APPROVED, remindedAt: IsNull(), dueDate: LessThanOrEqual(in24h) },
+      ],
+    });
+    for (const task of candidates) {
+      if (task.dueDate <= now) continue;
+      const minutesLeft = Math.floor((task.dueDate.getTime() - now.getTime()) / 60000);
+      task.remindedAt = now;
+      await this.taskRepo.save(task);
+      const hoursLeft = Math.max(1, Math.round(minutesLeft / 60));
+      await this.notifications.create(
+        task.assigneeId,
+        NotificationType.GENERAL,
+        `任务即将截止：${task.title}`,
+        `还剩约 ${hoursLeft} 小时（截止 ${this.formatDate(task.dueDate)}）`,
+        task.id,
+        { wechatUrl: this.wechat.buildTaskUrl(task.id) },
+      );
+    }
+  }
+
+  private async collectCompletionReviewers(task: Task): Promise<string[]> {
+    const reviewers = new Set<string>();
+    if (task.divisionId) {
+      const division = await this.divisionRepo.findOne({ where: { id: task.divisionId } });
+      division?.leaderIds?.forEach(id => id !== task.assigneeId && reviewers.add(id));
+    }
+    if (task.groupId) {
+      const group = await this.groupRepo.findOne({ where: { id: task.groupId } });
+      group?.leaderIds?.forEach(id => id !== task.assigneeId && reviewers.add(id));
+    }
+    if (!reviewers.size) {
+      const pms = await this.userRepo
+        .createQueryBuilder('u')
+        .where('u.role_level >= :lvl', { lvl: RoleLevel.PROJECT_MANAGER })
+        .getMany();
+      pms.forEach(u => u.id !== task.assigneeId && reviewers.add(u.id));
+    }
+    return Array.from(reviewers);
+  }
+
+  private formatDate(d: Date | string): string {
+    const date = typeof d === 'string' ? new Date(d) : d;
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
   }
 
   private async checkDependenciesCompleted(taskId: string): Promise<boolean> {

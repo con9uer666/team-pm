@@ -78,6 +78,9 @@ export class Task {
   @Column({ name: 'reviewed_at', type: 'timestamp', nullable: true })
   reviewedAt: Date;
 
+  @Column({ name: 'reminded_at', type: 'timestamp', nullable: true })
+  remindedAt: Date | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

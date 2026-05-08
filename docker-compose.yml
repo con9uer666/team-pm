@@ -35,6 +35,8 @@ services:
       DB_HOST: postgres
       DB_PASSWORD: ${DB_PASSWORD:-dev_password_123}
       JWT_SECRET: ${JWT_SECRET:-change_me_in_production}
+      WXPUSHER_APP_TOKEN: ${WXPUSHER_APP_TOKEN:-}
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://localhost:8080}
     ports:
       - "3000:3000"
     volumes:
