@@ -13,7 +13,6 @@ const showCreateDiv = ref(false)
 const showLeaders = ref(false)
 
 const newGroupName = ref('')
-const newGroupDivId = ref<string>('')
 const newDivName = ref('')
 const newDivDesc = ref('')
 const saving = ref(false)
@@ -31,17 +30,6 @@ function userLabel(id: string) {
   const u = usersById.value[id]
   return u ? `${u.realName}(${u.username})` : id.slice(0, 8)
 }
-
-function divName(id: string | null) {
-  if (!id) return '-'
-  return divisions.value.find(d => d.id === id)?.name || '-'
-}
-
-function groupsOfDivision(divId: string) {
-  return groups.value.filter(g => g.divisionId === divId)
-}
-
-const unassignedGroups = computed(() => groups.value.filter(g => !g.divisionId))
 
 const eligibleLeaders = computed(() =>
   users.value.filter(u => u.approvalStatus === 'approved' && u.roleLevel >= 3),
@@ -69,14 +57,10 @@ async function createGroup() {
   if (!newGroupName.value.trim()) return showFailToast('请输入组名')
   saving.value = true
   try {
-    await orgApi.createGroup({
-      name: newGroupName.value.trim(),
-      divisionId: newGroupDivId.value || undefined,
-    })
+    await orgApi.createGroup({ name: newGroupName.value.trim() })
     showSuccessToast('创建成功')
     showCreateGroup.value = false
     newGroupName.value = ''
-    newGroupDivId.value = ''
     await load()
   } catch (e: any) {
     showFailToast(e?.message || '创建失败')
@@ -176,13 +160,6 @@ onMounted(load)
             </template>
             <span v-else class="chip chip--empty">未设置</span>
           </div>
-          <div class="groups-under">
-            <span class="leaders-label">下属技术组:</span>
-            <template v-if="groupsOfDivision(d.id).length">
-              <span v-for="g in groupsOfDivision(d.id)" :key="g.id" class="chip">{{ g.name }}</span>
-            </template>
-            <span v-else class="chip chip--empty">未关联</span>
-          </div>
         </div>
       </section>
 
@@ -196,7 +173,6 @@ onMounted(load)
           <thead>
             <tr>
               <th>组名</th>
-              <th>所属兵种组</th>
               <th>组长</th>
               <th style="width: 110px;">操作</th>
             </tr>
@@ -204,7 +180,6 @@ onMounted(load)
           <tbody>
             <tr v-for="g in groups" :key="g.id">
               <td>{{ g.name }}</td>
-              <td>{{ divName(g.divisionId) }}</td>
               <td>
                 <template v-if="g.leaderIds && g.leaderIds.length">
                   <span v-for="lid in g.leaderIds" :key="lid" class="chip chip--lead">{{ userLabel(lid) }}</span>
@@ -219,23 +194,12 @@ onMounted(load)
             </tr>
           </tbody>
         </table>
-        <div v-if="unassignedGroups.length" class="warn">
-          ⚠ 有 {{ unassignedGroups.length }} 个技术组未关联兵种组
-        </div>
       </section>
     </template>
 
     <van-popup v-model:show="showCreateGroup" round position="center" style="width: 360px; padding: 24px;">
       <h3 style="margin: 0 0 16px;">新增技术组</h3>
       <van-field v-model="newGroupName" label="组名" placeholder="例如：电控/机械" />
-      <van-field label="所属兵种组">
-        <template #input>
-          <select v-model="newGroupDivId" class="native-select">
-            <option value="">（不关联）</option>
-            <option v-for="d in divisions" :key="d.id" :value="d.id">{{ d.name }}</option>
-          </select>
-        </template>
-      </van-field>
       <div class="modal-actions">
         <van-button block plain @click="showCreateGroup = false">取消</van-button>
         <van-button block type="primary" :loading="saving" @click="createGroup">创建</van-button>
