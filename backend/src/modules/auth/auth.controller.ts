@@ -56,7 +56,7 @@ export class AuthController {
   async register(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: Response) {
     const { accessToken, user } = await this.authService.register(dto);
     res.cookie('token', accessToken, { ...BASE_COOKIE, maxAge: PERSISTENT_MAX_AGE });
-    return { user };
+    return { user, accessToken };
   }
 
   @Post('login')
@@ -66,7 +66,7 @@ export class AuthController {
       ? BASE_COOKIE
       : { ...BASE_COOKIE, maxAge: PERSISTENT_MAX_AGE };
     res.cookie('token', accessToken, cookieOpts);
-    return { user };
+    return { user, accessToken };
   }
 
   @Post('logout')

@@ -17,6 +17,18 @@ dist-ssr
 .env.local
 .env.*.local
 
+# Capacitor Android build artifacts
+android/.gradle/
+android/.idea/
+android/app/build/
+android/build/
+android/captures/
+android/local.properties
+android/app/release/
+android/.cxx/
+android/keystore*
+
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

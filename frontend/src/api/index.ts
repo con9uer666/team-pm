@@ -25,6 +25,7 @@ export interface AuthResponse {
     wechatWorkId?: string | null
     email?: string | null
   }
+  accessToken?: string
 }
 
 export const authApi = {

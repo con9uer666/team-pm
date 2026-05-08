@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authApi, usersApi, type AuthResponse } from '../api'
+import { isNative } from '../utils/platform'
+import { getToken, setToken, removeToken } from '../utils/storage'
 
 const ADMIN_MODE_KEY = 'adminMode'
 
@@ -33,12 +35,20 @@ export const useAuthStore = defineStore('auth', () => {
     if (initPromise) return initPromise
     initPromise = (async () => {
       try {
+        if (isNative) {
+          const token = await getToken()
+          if (!token) {
+            user.value = null
+            return
+          }
+        }
         user.value = await usersApi.getMe()
         if (user.value?.isSuperAdmin && localStorage.getItem(ADMIN_MODE_KEY) === null) {
           setAdminMode(true)
         }
       } catch {
         user.value = null
+        if (isNative) await removeToken()
       } finally {
         ready.value = true
       }
@@ -49,6 +59,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(username: string, password: string, rememberMe = true) {
     const res = await authApi.login({ username, password, rememberMe })
     user.value = res.user
+    if (res.accessToken) await setToken(res.accessToken)
     if (res.user.isSuperAdmin) {
       setAdminMode(true)
     } else if (!(res.user.roleLevel >= 5)) {
@@ -59,11 +70,13 @@ export const useAuthStore = defineStore('auth', () => {
   async function register(username: string, password: string, realName: string, email: string, groupIds: string[]) {
     const res = await authApi.register({ username, password, realName, email, groupIds })
     user.value = res.user
+    if (res.accessToken) await setToken(res.accessToken)
   }
 
   async function logout() {
     try { await authApi.logout() } catch {}
     user.value = null
+    await removeToken()
     setAdminMode(false)
   }
 
