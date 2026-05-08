@@ -1,14 +1,9 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed } from 'vue'
 import { useAuthStore } from './stores/auth'
 
 const auth = useAuthStore()
-const loading = ref(true)
-
-onMounted(async () => {
-  await auth.init()
-  loading.value = false
-})
+const loading = computed(() => !auth.ready)
 </script>
 
 <template>

@@ -1,7 +1,7 @@
 import { Controller, Post, Body, Res, UseGuards, Req } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
-import { IsString, MinLength, MaxLength, IsEmail, IsArray, ArrayMinSize, IsUUID } from 'class-validator';
+import { IsString, MinLength, MaxLength, IsEmail, IsArray, ArrayMinSize, IsUUID, IsBoolean, IsOptional } from 'class-validator';
 import type { Response, Request } from 'express';
 
 export class RegisterDto {
@@ -34,14 +34,19 @@ export class LoginDto {
 
   @IsString()
   password: string;
+
+  @IsOptional()
+  @IsBoolean()
+  rememberMe?: boolean;
 }
 
-const COOKIE_OPTIONS = {
+const BASE_COOKIE = {
   httpOnly: true,
   sameSite: 'strict' as const,
   path: '/',
-  maxAge: 7 * 24 * 60 * 60 * 1000,
 };
+
+const PERSISTENT_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 
 @Controller('api/auth')
 export class AuthController {
@@ -50,14 +55,17 @@ export class AuthController {
   @Post('register')
   async register(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: Response) {
     const { accessToken, user } = await this.authService.register(dto);
-    res.cookie('token', accessToken, COOKIE_OPTIONS);
+    res.cookie('token', accessToken, { ...BASE_COOKIE, maxAge: PERSISTENT_MAX_AGE });
     return { user };
   }
 
   @Post('login')
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const { accessToken, user } = await this.authService.login(dto);
-    res.cookie('token', accessToken, COOKIE_OPTIONS);
+    const cookieOpts = dto.rememberMe === false
+      ? BASE_COOKIE
+      : { ...BASE_COOKIE, maxAge: PERSISTENT_MAX_AGE };
+    res.cookie('token', accessToken, cookieOpts);
     return { user };
   }
 

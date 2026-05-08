@@ -3,6 +3,7 @@ import http from './http'
 export interface LoginDto {
   username: string
   password: string
+  rememberMe?: boolean
 }
 
 export interface RegisterDto {

@@ -11,6 +11,8 @@ export const useAuthStore = defineStore('auth', () => {
     typeof window !== 'undefined' && localStorage.getItem(ADMIN_MODE_KEY) === 'true'
   )
 
+  let initPromise: Promise<void> | null = null
+
   const isLoggedIn = () => !!user.value
 
   const isGuest = computed(() => user.value?.approvalStatus !== 'approved')
@@ -27,20 +29,25 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function init() {
-    try {
-      user.value = await usersApi.getMe()
-      if (user.value?.isSuperAdmin && localStorage.getItem(ADMIN_MODE_KEY) === null) {
-        setAdminMode(true)
+    if (ready.value) return
+    if (initPromise) return initPromise
+    initPromise = (async () => {
+      try {
+        user.value = await usersApi.getMe()
+        if (user.value?.isSuperAdmin && localStorage.getItem(ADMIN_MODE_KEY) === null) {
+          setAdminMode(true)
+        }
+      } catch {
+        user.value = null
+      } finally {
+        ready.value = true
       }
-    } catch {
-      user.value = null
-    } finally {
-      ready.value = true
-    }
+    })()
+    return initPromise
   }
 
-  async function login(username: string, password: string) {
-    const res = await authApi.login({ username, password })
+  async function login(username: string, password: string, rememberMe = true) {
+    const res = await authApi.login({ username, password, rememberMe })
     user.value = res.user
     if (res.user.isSuperAdmin) {
       setAdminMode(true)

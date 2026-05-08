@@ -14,6 +14,9 @@ const password = ref('')
 const realName = ref('')
 const email = ref('')
 const groupIds = ref<string[]>([])
+const rememberMe = ref<boolean>(
+  typeof window !== 'undefined' ? localStorage.getItem('rememberMe') !== 'false' : true
+)
 const loading = ref(false)
 const availableGroups = ref<Array<{ id: string; name: string }>>([])
 const showGroupPicker = ref(false)
@@ -63,7 +66,8 @@ async function handleSubmit() {
       showSuccessToast('注册成功，等待审核')
       router.replace('/pending')
     } else {
-      await auth.login(username.value, password.value)
+      localStorage.setItem('rememberMe', String(rememberMe.value))
+      await auth.login(username.value, password.value, rememberMe.value)
       showSuccessToast('登录成功')
       if (auth.isGuest) {
         router.replace('/pending')
@@ -131,6 +135,10 @@ onMounted(() => {
           @click="ensureGroups(); showGroupPicker = true"
         />
       </van-cell-group>
+
+      <div v-if="!isRegister" class="remember-row">
+        <van-checkbox v-model="rememberMe" shape="square">下次自动登录</van-checkbox>
+      </div>
 
       <van-action-sheet v-model:show="showGroupPicker" title="选择技术组">
         <div class="group-picker">
@@ -254,5 +262,11 @@ onMounted(() => {
 
 .picker-actions {
   padding: 16px;
+}
+
+.remember-row {
+  padding: 14px 16px 0;
+  display: flex;
+  align-items: center;
 }
 </style>

@@ -54,8 +54,11 @@ const GUEST_ALLOWED = new Set<string>([
   'team-structure',
 ])
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const auth = useAuthStore()
+  if (!auth.ready) {
+    await auth.init()
+  }
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
   const requiresAdmin = to.matched.some(record => record.meta.requiresAdmin)
 

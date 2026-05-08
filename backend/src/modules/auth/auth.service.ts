@@ -75,7 +75,7 @@ export class AuthService {
     );
   }
 
-  async login(dto: { username: string; password: string }) {
+  async login(dto: { username: string; password: string; rememberMe?: boolean }) {
     const user = await this.userRepo.findOne({ where: { username: dto.username } });
     if (!user) {
       throw new UnauthorizedException('用户名或密码错误');
@@ -88,22 +88,23 @@ export class AuthService {
 
     user.sessionToken = randomUUID();
     await this.userRepo.save(user);
-    return this.generateToken(user);
+    return this.generateToken(user, dto.rememberMe);
   }
 
   async logout(userId: string) {
     await this.userRepo.update(userId, { sessionToken: null });
   }
 
-  private generateToken(user: User) {
+  private generateToken(user: User, rememberMe?: boolean) {
     const payload = {
       sub: user.id,
       username: user.username,
       roleLevel: user.roleLevel,
       sessionToken: user.sessionToken,
     };
+    const expiresIn = rememberMe === false ? '1d' : '7d';
     return {
-      accessToken: this.jwtService.sign(payload),
+      accessToken: this.jwtService.sign(payload, { expiresIn }),
       user: {
         id: user.id,
         username: user.username,
