@@ -5,7 +5,8 @@ import { showToast, showConfirmDialog, showFailToast } from 'vant'
 import { useAuthStore } from '../stores/auth'
 import { spacesApi, type SpaceDetail } from '../api/spaces'
 import { objectivesApi, type Objective } from '../api/objectives'
-import { roleLevelLabel } from '../composables/useRoleLabel'
+import { orgApi, type GroupInfo, type DivisionInfo } from '../api/users'
+import { roleLabel } from '../composables/useRoleLabel'
 
 const route = useRoute()
 const router = useRouter()
@@ -18,6 +19,9 @@ const detail = ref<SpaceDetail | null>(null)
 const loading = ref(false)
 const active = ref(0)
 
+const allGroups = ref<GroupInfo[]>([])
+const allDivisions = ref<DivisionInfo[]>([])
+
 const showCreate = ref(false)
 const newTitle = ref('')
 const newDesc = ref('')
@@ -27,16 +31,40 @@ const creating = ref(false)
 
 const canDeliver = computed(() => {
   if (!detail.value || !auth.user) return false
-  if (auth.user.isSuperAdmin || auth.user.roleLevel >= 4) return true
+  if (auth.user.isSuperAdmin || auth.user.roleLevel >= 5) return true
   return detail.value.info.leaderIds.includes(auth.user.id)
 })
+
+const currentGroupId = computed(() => scope.value === 'group' ? id.value : null)
+const currentDivisionId = computed(() => scope.value === 'division' ? id.value : null)
+
+const groupNameMap = computed(() => {
+  const map: Record<string, string> = {}
+  for (const g of allGroups.value) map[g.id] = g.name
+  return map
+})
+const divisionNameMap = computed(() => {
+  const map: Record<string, string> = {}
+  for (const d of allDivisions.value) map[d.id] = d.name
+  return map
+})
+
+function groupName(gid: string) { return groupNameMap.value[gid] || gid.slice(0, 6) }
+function divisionName(did: string) { return divisionNameMap.value[did] || did.slice(0, 6) }
 
 async function load() {
   loading.value = true
   try {
-    detail.value = scope.value === 'group'
-      ? await spacesApi.getGroup(id.value)
-      : await spacesApi.getDivision(id.value)
+    const [d, gs, ds] = await Promise.all([
+      scope.value === 'group'
+        ? spacesApi.getGroup(id.value)
+        : spacesApi.getDivision(id.value),
+      orgApi.getGroups().catch(() => [] as GroupInfo[]),
+      orgApi.getDivisions().catch(() => [] as DivisionInfo[]),
+    ])
+    detail.value = d
+    allGroups.value = gs
+    allDivisions.value = ds
   } catch (e: any) {
     showToast(e?.message || '加载失败')
   } finally {
@@ -183,8 +211,28 @@ onMounted(load)
             v-for="m in detail.members"
             :key="m.id"
             :title="m.realName"
-            :label="`@${m.username} · ${roleLevelLabel(m.roleLevel)}`"
           >
+            <template #label>
+              <div class="member-meta">
+                <span class="muted">@{{ m.username }}</span>
+                <span class="role">· {{ roleLabel(m.roleLevel, m.position) }}</span>
+              </div>
+              <div
+                v-if="(m.groupIds || []).some(gid => gid !== currentGroupId) || (m.divisionIds || []).some(did => did !== currentDivisionId)"
+                class="member-tags"
+              >
+                <span
+                  v-for="gid in (m.groupIds || []).filter(g => g !== currentGroupId)"
+                  :key="'g-' + gid"
+                  class="member-chip member-chip--group"
+                >{{ groupName(gid) }}</span>
+                <span
+                  v-for="did in (m.divisionIds || []).filter(d => d !== currentDivisionId)"
+                  :key="'d-' + did"
+                  class="member-chip member-chip--division"
+                >{{ divisionName(did) }}</span>
+              </div>
+            </template>
             <template #right-icon>
               <van-tag
                 v-if="detail.info.leaderIds.includes(m.id)"
@@ -364,5 +412,44 @@ onMounted(load)
   display: flex;
   justify-content: center;
   padding: 60px 0;
+}
+
+.member-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.member-meta .muted {
+  color: var(--text-muted);
+}
+
+.member-meta .role {
+  color: var(--text-secondary);
+}
+
+.member-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.member-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+}
+
+.member-chip--group {
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.member-chip--division {
+  background: #fff7ed;
+  color: #c2410c;
 }
 </style>

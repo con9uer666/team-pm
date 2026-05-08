@@ -4,9 +4,16 @@ export enum RoleLevel {
   RESERVE_MEMBER = 1,
   OFFICIAL_MEMBER = 2,
   GROUP_LEADER = 3,
-  PROJECT_MANAGER = 4,
+  VICE_CAPTAIN = 4,
+  PROJECT_MANAGER = 5,
   TEAM_CAPTAIN = 5,
   INSTRUCTOR = 6,
+}
+
+export enum Position {
+  PROJECT_MANAGER = 'project_manager',
+  TEAM_CAPTAIN = 'team_captain',
+  VICE_CAPTAIN = 'vice_captain',
 }
 
 export enum UserStatus {
@@ -37,6 +44,9 @@ export class User {
 
   @Column({ name: 'role_level', type: 'int' })
   roleLevel: RoleLevel;
+
+  @Column({ name: 'position', type: 'varchar', length: 32, nullable: true })
+  position: Position | null;
 
   @Column({ nullable: true, length: 500 })
   avatarUrl: string;

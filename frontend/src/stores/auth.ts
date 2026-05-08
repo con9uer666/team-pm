@@ -16,7 +16,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isGuest = computed(() => user.value?.approvalStatus !== 'approved')
 
   const canAdmin = computed(
-    () => !!user.value && (user.value.isSuperAdmin || user.value.roleLevel >= 4)
+    () => !!user.value && (user.value.isSuperAdmin || user.value.roleLevel >= 5)
   )
 
   function setAdminMode(v: boolean) {
@@ -44,7 +44,7 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = res.user
     if (res.user.isSuperAdmin) {
       setAdminMode(true)
-    } else if (!(res.user.roleLevel >= 4)) {
+    } else if (!(res.user.roleLevel >= 5)) {
       setAdminMode(false)
     }
   }

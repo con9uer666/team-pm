@@ -1,10 +1,13 @@
 import http from './http'
 
+export type Position = 'project_manager' | 'team_captain' | 'vice_captain'
+
 export interface UserInfo {
   id: string
   username: string
   realName: string
   roleLevel: number
+  position?: Position | null
   groupIds: string[] | null
   divisionIds: string[] | null
   status: string
@@ -39,14 +42,26 @@ export interface OrgStructure {
 export const usersApi = {
   getMe: (): Promise<UserInfo> => http.get('/users/me'),
   getAll: (): Promise<UserInfo[]> => http.get('/users'),
-  updateRole: (id: string, roleLevel: number): Promise<UserInfo> =>
-    http.patch(`/users/${id}/role`, { roleLevel }),
+  updateRole: (id: string, roleLevel: number, position?: Position | null): Promise<UserInfo> =>
+    http.patch(`/users/${id}/role`, { roleLevel, position }),
+  updatePosition: (id: string, position: Position | null): Promise<UserInfo> =>
+    http.patch(`/users/${id}/position`, { position }),
+  resetPassword: (id: string, password: string): Promise<{ message: string }> =>
+    http.patch(`/users/${id}/password`, { password }),
   assignGroups: (id: string, groupIds: string[]): Promise<UserInfo> =>
     http.patch(`/users/${id}/group`, { groupIds }),
   assignDivisions: (id: string, divisionIds: string[]): Promise<UserInfo> =>
     http.patch(`/users/${id}/division`, { divisionIds }),
-  createUser: (dto: { username: string; password: string; realName: string; roleLevel?: number; groupIds?: string[]; divisionIds?: string[] }): Promise<UserInfo> =>
-    http.post('/users', dto),
+  createUser: (dto: {
+    username: string
+    password: string
+    realName: string
+    roleLevel?: number
+    position?: Position | null
+    groupIds?: string[]
+    divisionIds?: string[]
+    email?: string
+  }): Promise<UserInfo> => http.post('/users', dto),
   removeUser: (id: string): Promise<void> =>
     http.delete(`/users/${id}`),
 }

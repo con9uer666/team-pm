@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { showToast } from 'vant'
 import { orgApi, type UserInfo, type GroupInfo, type DivisionInfo } from '../api/users'
+import { roleLabel } from '../composables/useRoleLabel'
 
 const users = ref<UserInfo[]>([])
 const groups = ref<GroupInfo[]>([])
@@ -9,15 +10,6 @@ const divisions = ref<DivisionInfo[]>([])
 const loading = ref(false)
 const expandedDivisions = ref<Set<string>>(new Set())
 const expandedGroups = ref<Set<string>>(new Set())
-
-const roleNames: Record<number, string> = {
-  1: '梯队员',
-  2: '正式队员',
-  3: '组长',
-  4: '项目管理',
-  5: '队长',
-  6: '指导老师',
-}
 
 async function loadData() {
   loading.value = true
@@ -34,11 +26,19 @@ async function loadData() {
 }
 
 const topManagement = computed(() =>
-  users.value.filter(u => u.roleLevel >= 4)
+  users.value.filter(u => u.roleLevel >= 5)
 )
 
+function getUser(id: string) {
+  return users.value.find(u => u.id === id)
+}
+
 function getUserName(id: string) {
-  return users.value.find(u => u.id === id)?.realName || '未知'
+  return getUser(id)?.realName || '未知'
+}
+
+function getUserLabel(u: UserInfo) {
+  return roleLabel(u.roleLevel, u.position)
 }
 
 function getDivisionLeaders(d: DivisionInfo) {
@@ -94,7 +94,7 @@ onMounted(loadData)
           <div class="tree-children">
             <div v-for="u in topManagement" :key="u.id" class="tree-leaf">
               <span class="leaf-name">{{ u.realName }}</span>
-              <van-tag type="primary" plain size="medium">{{ roleNames[u.roleLevel] }}</van-tag>
+              <van-tag type="primary" plain size="medium">{{ getUserLabel(u) }}</van-tag>
             </div>
           </div>
         </div>

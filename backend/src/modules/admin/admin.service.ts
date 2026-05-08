@@ -99,13 +99,17 @@ export class AdminService {
       RoleLevel.RESERVE_MEMBER,
       RoleLevel.OFFICIAL_MEMBER,
       RoleLevel.GROUP_LEADER,
+      RoleLevel.VICE_CAPTAIN,
       RoleLevel.PROJECT_MANAGER,
-      RoleLevel.TEAM_CAPTAIN,
       RoleLevel.INSTRUCTOR,
     ];
     for (const lvl of levels) {
       counts[String(lvl)] = await this.userRepo.count({ where: { roleLevel: lvl } });
     }
+    const fives = await this.userRepo.find({ where: { roleLevel: RoleLevel.PROJECT_MANAGER }, select: ['position'] });
+    counts['5:project_manager'] = fives.filter(u => u.position === 'project_manager').length;
+    counts['5:team_captain'] = fives.filter(u => u.position === 'team_captain').length;
+    counts['5:unspecified'] = fives.filter(u => !u.position).length;
     return counts;
   }
 }

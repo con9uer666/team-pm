@@ -36,7 +36,7 @@ const verifyAction = ref<'approve' | 'reject'>('approve')
 const verifyReason = ref('')
 
 const isLeader = computed(() => (auth.user?.roleLevel || 0) >= 3)
-const isManager = computed(() => (auth.user?.roleLevel || 0) >= 4 || auth.user?.isSuperAdmin)
+const isManager = computed(() => (auth.user?.roleLevel || 0) >= 5 || auth.user?.isSuperAdmin)
 
 const statusFilters = [
   { value: '', text: '全部' },

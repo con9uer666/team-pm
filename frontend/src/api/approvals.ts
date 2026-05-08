@@ -1,5 +1,5 @@
 import http from './http'
-import type { UserInfo } from './users'
+import type { UserInfo, Position } from './users'
 
 export interface ApprovalStatus {
   approvalStatus: 'pending' | 'approved' | 'rejected'
@@ -9,6 +9,7 @@ export interface ApprovalStatus {
 
 export interface ApproveDto {
   roleLevel?: number
+  position?: Position | null
   groupIds?: string[]
   divisionIds?: string[]
 }

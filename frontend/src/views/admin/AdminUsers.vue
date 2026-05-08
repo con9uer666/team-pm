@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { showConfirmDialog, showFailToast, showSuccessToast } from 'vant'
-import { usersApi, orgApi, type UserInfo, type GroupInfo, type DivisionInfo } from '../../api/users'
+import { usersApi, orgApi, type UserInfo, type GroupInfo, type DivisionInfo, type Position } from '../../api/users'
 import { approvalsApi } from '../../api/approvals'
 import { useAuthStore } from '../../stores/auth'
-import { ROLE_LEVELS, roleLevelLabel } from '../../composables/useRoleLabel'
+import { ROLE_LEVELS, roleLabel } from '../../composables/useRoleLabel'
 
 const auth = useAuthStore()
 const activeTab = ref<'approved' | 'pending'>('approved')
@@ -21,15 +21,31 @@ const filterGroup = ref<string | null>(null)
 
 const showApproveModal = ref(false)
 const showEditModal = ref(false)
+const showCreateModal = ref(false)
+const showPwdModal = ref(false)
 const target = ref<UserInfo | null>(null)
 const formRole = ref<number>(1)
+const formPosition = ref<Position | null>(null)
 const formGroupIds = ref<string[]>([])
 const formDivisionIds = ref<string[]>([])
 const formReason = ref('')
 const saving = ref(false)
 
+const createForm = ref({
+  username: '',
+  realName: '',
+  email: '',
+  password: '',
+  roleLevel: 1 as number,
+  position: null as Position | null,
+  groupIds: [] as string[],
+  divisionIds: [] as string[],
+})
+
+const pwdForm = ref({ newPassword: '', confirm: '' })
+
 const canAssignDivision = computed(
-  () => !!auth.user && (auth.user.isSuperAdmin || auth.user.roleLevel >= 4),
+  () => !!auth.user && (auth.user.isSuperAdmin || auth.user.roleLevel >= 5),
 )
 
 async function loadAll() {
@@ -72,6 +88,7 @@ const filteredApproved = computed(() => {
 function openApprove(u: UserInfo) {
   target.value = u
   formRole.value = 1
+  formPosition.value = null
   formGroupIds.value = u.groupIds || []
   formDivisionIds.value = u.divisionIds || []
   formReason.value = ''
@@ -81,17 +98,56 @@ function openApprove(u: UserInfo) {
 function openEdit(u: UserInfo) {
   target.value = u
   formRole.value = u.roleLevel
+  formPosition.value = u.position || null
   formGroupIds.value = u.groupIds || []
   formDivisionIds.value = u.divisionIds || []
   showEditModal.value = true
 }
 
+function openCreate() {
+  createForm.value = {
+    username: '',
+    realName: '',
+    email: '',
+    password: '',
+    roleLevel: 1,
+    position: null,
+    groupIds: [],
+    divisionIds: [],
+  }
+  showCreateModal.value = true
+}
+
+function openResetPwd(u: UserInfo) {
+  target.value = u
+  pwdForm.value = { newPassword: '', confirm: '' }
+  showPwdModal.value = true
+}
+
+function toggleInList(list: string[], id: string) {
+  const i = list.indexOf(id)
+  if (i >= 0) list.splice(i, 1)
+  else list.push(id)
+}
+
+function normalizePosition(role: number, pos: Position | null): Position | null {
+  if (role === 5) {
+    return pos === 'project_manager' || pos === 'team_captain' ? pos : null
+  }
+  if (role === 4) return 'vice_captain'
+  return null
+}
+
 async function doApprove() {
   if (!target.value) return
+  if (formRole.value === 5 && !formPosition.value) {
+    return showFailToast('请选择具体职位（项管/队长）')
+  }
   saving.value = true
   try {
     await approvalsApi.approve(target.value.id, {
       roleLevel: formRole.value,
+      position: normalizePosition(formRole.value, formPosition.value),
       groupIds: formGroupIds.value,
       divisionIds: canAssignDivision.value ? formDivisionIds.value : undefined,
     })
@@ -123,10 +179,17 @@ async function doReject() {
 
 async function saveEdit() {
   if (!target.value) return
+  if (formRole.value === 5 && !formPosition.value) {
+    return showFailToast('请选择具体职位（项管/队长）')
+  }
   saving.value = true
   try {
-    if (formRole.value !== target.value.roleLevel) {
-      await usersApi.updateRole(target.value.id, formRole.value)
+    const normalizedPos = normalizePosition(formRole.value, formPosition.value)
+    if (
+      formRole.value !== target.value.roleLevel ||
+      normalizedPos !== (target.value.position || null)
+    ) {
+      await usersApi.updateRole(target.value.id, formRole.value, normalizedPos)
     }
     await usersApi.assignGroups(target.value.id, formGroupIds.value)
     if (canAssignDivision.value) {
@@ -137,6 +200,51 @@ async function saveEdit() {
     await loadAll()
   } catch (e: any) {
     showFailToast(e?.message || '更新失败')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function submitCreate() {
+  const f = createForm.value
+  if (!f.username.trim()) return showFailToast('请填写用户名')
+  if (!f.realName.trim()) return showFailToast('请填写真实姓名')
+  if (!f.password || f.password.length < 6) return showFailToast('密码至少 6 位')
+  if (f.roleLevel === 5 && !f.position) return showFailToast('请选择具体职位（项管/队长）')
+  saving.value = true
+  try {
+    await usersApi.createUser({
+      username: f.username.trim(),
+      realName: f.realName.trim(),
+      email: f.email.trim() || undefined,
+      password: f.password,
+      roleLevel: f.roleLevel,
+      position: normalizePosition(f.roleLevel, f.position),
+      groupIds: f.groupIds,
+      divisionIds: canAssignDivision.value ? f.divisionIds : undefined,
+    })
+    showSuccessToast('账号创建成功')
+    showCreateModal.value = false
+    await loadAll()
+  } catch (e: any) {
+    showFailToast(e?.message || '创建失败')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function submitResetPwd() {
+  if (!target.value) return
+  const { newPassword, confirm } = pwdForm.value
+  if (!newPassword || newPassword.length < 6) return showFailToast('密码至少 6 位')
+  if (newPassword !== confirm) return showFailToast('两次输入不一致')
+  saving.value = true
+  try {
+    await usersApi.resetPassword(target.value.id, newPassword)
+    showSuccessToast('密码已重置，该用户会被强制下线')
+    showPwdModal.value = false
+  } catch (e: any) {
+    showFailToast(e?.message || '重置失败')
   } finally {
     saving.value = false
   }
@@ -171,6 +279,9 @@ onMounted(loadAll)
         <van-tab title="全部用户" name="approved" />
         <van-tab :title="`待审核 (${pendingUsers.length})`" name="pending" />
       </van-tabs>
+      <div class="top-actions">
+        <van-button type="primary" icon="plus" size="small" @click="openCreate">新建账号</van-button>
+      </div>
     </div>
 
     <template v-if="activeTab === 'approved'">
@@ -211,7 +322,7 @@ onMounted(loadAll)
               <van-tag v-if="u.isSuperAdmin" type="warning" size="mini">超管</van-tag>
             </td>
             <td class="muted">{{ u.username }}</td>
-            <td>{{ roleLevelLabel(u.roleLevel) }}</td>
+            <td>{{ roleLabel(u.roleLevel, u.position) }}</td>
             <td>
               <span v-for="gid in u.groupIds || []" :key="gid" class="chip">{{ groupName(gid) }}</span>
               <span v-if="!u.groupIds?.length" class="muted">—</span>
@@ -222,6 +333,13 @@ onMounted(loadAll)
             </td>
             <td>
               <van-button size="mini" plain @click="openEdit(u)">编辑</van-button>
+              <van-button
+                v-if="!u.isSuperAdmin"
+                size="mini"
+                plain
+                type="warning"
+                @click="openResetPwd(u)"
+              >改密</van-button>
               <van-button
                 v-if="!u.isSuperAdmin"
                 size="mini"
@@ -268,6 +386,21 @@ onMounted(loadAll)
             <select v-model="formRole" class="select w-full">
               <option v-for="r in ROLE_LEVELS" :key="r.value" :value="r.value">{{ r.label }}</option>
             </select>
+          </template>
+        </van-field>
+
+        <van-field v-if="formRole === 5" label="具体职位">
+          <template #input>
+            <div class="radio-row">
+              <label class="chk">
+                <input type="radio" value="project_manager" v-model="formPosition" />
+                项管
+              </label>
+              <label class="chk">
+                <input type="radio" value="team_captain" v-model="formPosition" />
+                队长
+              </label>
+            </div>
           </template>
         </van-field>
 
@@ -333,6 +466,20 @@ onMounted(loadAll)
             </select>
           </template>
         </van-field>
+        <van-field v-if="formRole === 5" label="具体职位">
+          <template #input>
+            <div class="radio-row">
+              <label class="chk">
+                <input type="radio" value="project_manager" v-model="formPosition" />
+                项管
+              </label>
+              <label class="chk">
+                <input type="radio" value="team_captain" v-model="formPosition" />
+                队长
+              </label>
+            </div>
+          </template>
+        </van-field>
         <van-field label="技术组">
           <template #input>
             <div class="checkbox-grid">
@@ -367,6 +514,106 @@ onMounted(loadAll)
         <van-button type="primary" :loading="saving" @click="saveEdit">保存</van-button>
       </div>
     </van-popup>
+
+    <van-popup
+      v-model:show="showCreateModal"
+      round
+      :style="{ width: '90%', maxWidth: '520px', padding: '24px' }"
+    >
+      <h3 class="modal-title">新建账号</h3>
+      <p class="hint" style="margin:-8px 0 12px;color:#64748b;font-size:12px;">
+        管理员创建的账号默认已审核，可直接登录。
+      </p>
+      <van-cell-group inset>
+        <van-field v-model="createForm.username" label="用户名" placeholder="登录名" maxlength="32" />
+        <van-field v-model="createForm.realName" label="真实姓名" maxlength="32" />
+        <van-field v-model="createForm.email" label="邮箱" placeholder="（可选）" maxlength="128" />
+        <van-field v-model="createForm.password" label="初始密码" type="password" placeholder="至少 6 位" />
+        <van-field label="角色">
+          <template #input>
+            <select v-model="createForm.roleLevel" class="select w-full">
+              <option v-for="r in ROLE_LEVELS" :key="r.value" :value="r.value">{{ r.label }}</option>
+            </select>
+          </template>
+        </van-field>
+        <van-field v-if="createForm.roleLevel === 5" label="具体职位">
+          <template #input>
+            <div class="radio-row">
+              <label class="chk">
+                <input type="radio" value="project_manager" v-model="createForm.position" />
+                项管
+              </label>
+              <label class="chk">
+                <input type="radio" value="team_captain" v-model="createForm.position" />
+                队长
+              </label>
+            </div>
+          </template>
+        </van-field>
+        <van-field label="技术组">
+          <template #input>
+            <div class="checkbox-grid">
+              <label v-for="g in groups" :key="g.id" class="chk">
+                <input
+                  type="checkbox"
+                  :checked="createForm.groupIds.includes(g.id)"
+                  @change="toggleInList(createForm.groupIds, g.id)"
+                />
+                {{ g.name }}
+              </label>
+            </div>
+          </template>
+        </van-field>
+        <van-field v-if="canAssignDivision" label="兵种组">
+          <template #input>
+            <div class="checkbox-grid">
+              <label v-for="d in divisions" :key="d.id" class="chk">
+                <input
+                  type="checkbox"
+                  :checked="createForm.divisionIds.includes(d.id)"
+                  @change="toggleInList(createForm.divisionIds, d.id)"
+                />
+                {{ d.name }}
+              </label>
+            </div>
+          </template>
+        </van-field>
+      </van-cell-group>
+      <div class="modal-actions">
+        <van-button plain @click="showCreateModal = false">取消</van-button>
+        <van-button type="primary" :loading="saving" @click="submitCreate">创建</van-button>
+      </div>
+    </van-popup>
+
+    <van-popup
+      v-model:show="showPwdModal"
+      round
+      :style="{ width: '90%', maxWidth: '420px', padding: '24px' }"
+    >
+      <h3 class="modal-title">重置 {{ target?.realName }} 的密码</h3>
+      <p class="hint" style="margin:-8px 0 12px;color:#92400e;font-size:12px;background:#fef3c7;padding:8px 10px;border-radius:6px;">
+        修改后该用户会被强制下线，需要用新密码重新登录。
+      </p>
+      <van-cell-group inset>
+        <van-field
+          v-model="pwdForm.newPassword"
+          label="新密码"
+          type="password"
+          placeholder="至少 6 位"
+          autocomplete="new-password"
+        />
+        <van-field
+          v-model="pwdForm.confirm"
+          label="再次输入"
+          type="password"
+          autocomplete="new-password"
+        />
+      </van-cell-group>
+      <div class="modal-actions">
+        <van-button plain @click="showPwdModal = false">取消</van-button>
+        <van-button type="primary" :loading="saving" @click="submitResetPwd">确认重置</van-button>
+      </div>
+    </van-popup>
   </div>
 </template>
 
@@ -376,6 +623,25 @@ onMounted(loadAll)
   border-radius: 14px;
   padding: 20px;
   box-shadow: 0 2px 12px rgba(15, 23, 42, 0.05);
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.top-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.radio-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
 .filters {

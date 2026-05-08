@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { User, Group, ApprovalStatus, RoleLevel, NotificationType } from '../../entities';
+import { User, Group, ApprovalStatus, RoleLevel, Position, NotificationType } from '../../entities';
 import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
@@ -45,7 +45,7 @@ export class ApprovalsService {
   async approve(
     userId: string,
     operatorId: string,
-    dto: { roleLevel?: number; groupIds?: string[]; divisionIds?: string[] },
+    dto: { roleLevel?: number; position?: Position | null; groupIds?: string[]; divisionIds?: string[] },
   ) {
     const operator = await this.userRepo.findOne({ where: { id: operatorId } });
     const target = await this.userRepo.findOne({ where: { id: userId } });
@@ -63,6 +63,9 @@ export class ApprovalsService {
       if (dto.divisionIds !== undefined) {
         throw new ForbiddenException('组长无权分配兵种组');
       }
+      if (dto.position !== undefined && dto.position !== null) {
+        throw new ForbiddenException('组长无权设置职位');
+      }
     }
 
     if (dto.roleLevel !== undefined) {
@@ -70,6 +73,11 @@ export class ApprovalsService {
         throw new ForbiddenException('组长只能授予组长及以下角色');
       }
       target.roleLevel = dto.roleLevel;
+    }
+    if (dto.position !== undefined) {
+      target.position = dto.position;
+    } else if (dto.roleLevel !== undefined && dto.roleLevel < RoleLevel.VICE_CAPTAIN) {
+      target.position = null;
     }
     if (dto.groupIds !== undefined) {
       target.groupIds = dto.groupIds.length ? dto.groupIds : null;

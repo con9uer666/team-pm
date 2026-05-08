@@ -1,4 +1,4 @@
-export { User, RoleLevel, UserStatus, ApprovalStatus } from './user.entity';
+export { User, RoleLevel, UserStatus, ApprovalStatus, Position } from './user.entity';
 export { Group, Division } from './organization.entity';
 export { Task, TaskStatus } from './task.entity';
 export { TaskDependency } from './task-dependency.entity';

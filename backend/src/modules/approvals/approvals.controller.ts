@@ -1,13 +1,13 @@
 import { Controller, Get, Patch, Param, Body, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { IsArray, IsInt, IsOptional, IsString, IsUUID, MinLength, MaxLength, Min, Max } from 'class-validator';
+import { IsArray, IsEnum, IsInt, IsOptional, IsString, IsUUID, MinLength, MaxLength, Min, Max } from 'class-validator';
 import { ApprovalsService } from './approvals.service';
 import { ApprovalGuard } from '../../common/guards/approval.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { AllowPending } from '../../common/decorators/allow-pending.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { RoleLevel } from '../../entities';
+import { RoleLevel, Position } from '../../entities';
 
 export class ApproveDto {
   @IsOptional()
@@ -15,6 +15,10 @@ export class ApproveDto {
   @Min(1)
   @Max(6)
   roleLevel?: number;
+
+  @IsOptional()
+  @IsEnum(Position)
+  position?: Position | null;
 
   @IsOptional()
   @IsArray()

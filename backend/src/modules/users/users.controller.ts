@@ -6,7 +6,7 @@ import { ApprovalGuard } from '../../common/guards/approval.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { AllowPending } from '../../common/decorators/allow-pending.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { RoleLevel } from '../../entities';
+import { RoleLevel, Position } from '../../entities';
 
 @Controller('api/users')
 @UseGuards(AuthGuard('jwt'), ApprovalGuard, RolesGuard)
@@ -27,8 +27,32 @@ export class UsersController {
 
   @Patch(':id/role')
   @Roles(RoleLevel.TEAM_CAPTAIN)
-  updateRole(@Param('id') id: string, @Body('roleLevel') roleLevel: number, @CurrentUser() user: { id: string }) {
-    return this.usersService.updateRole(id, roleLevel, user.id);
+  updateRole(
+    @Param('id') id: string,
+    @Body() body: { roleLevel: number; position?: Position | null },
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.usersService.updateRole(id, body.roleLevel, user.id, body.position);
+  }
+
+  @Patch(':id/position')
+  @Roles(RoleLevel.PROJECT_MANAGER)
+  updatePosition(
+    @Param('id') id: string,
+    @Body('position') position: Position | null,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.usersService.updatePosition(id, position, user.id);
+  }
+
+  @Patch(':id/password')
+  @Roles(RoleLevel.PROJECT_MANAGER)
+  resetPassword(
+    @Param('id') id: string,
+    @Body('password') password: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.usersService.resetPassword(id, password, user.id);
   }
 
   @Patch(':id/group')
@@ -45,8 +69,20 @@ export class UsersController {
 
   @Post()
   @Roles(RoleLevel.PROJECT_MANAGER)
-  createUser(@Body() dto: { username: string; password: string; realName: string; roleLevel?: number; groupIds?: string[]; divisionIds?: string[] }) {
-    return this.usersService.createUser(dto);
+  createUser(
+    @Body() dto: {
+      username: string;
+      password: string;
+      realName: string;
+      roleLevel?: number;
+      position?: Position | null;
+      groupIds?: string[];
+      divisionIds?: string[];
+      email?: string;
+    },
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.usersService.createUser(dto, user.id);
   }
 
   @Delete(':id')

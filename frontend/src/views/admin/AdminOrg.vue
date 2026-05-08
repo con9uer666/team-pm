@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { showFailToast, showSuccessToast } from 'vant'
 import { orgApi, usersApi, type GroupInfo, type DivisionInfo, type UserInfo } from '../../api/users'
+import { roleLabel } from '../../composables/useRoleLabel'
 
 const groups = ref<GroupInfo[]>([])
 const divisions = ref<DivisionInfo[]>([])
@@ -31,9 +32,23 @@ function userLabel(id: string) {
   return u ? `${u.realName}(${u.username})` : id.slice(0, 8)
 }
 
-const eligibleLeaders = computed(() =>
-  users.value.filter(u => u.approvalStatus === 'approved' && u.roleLevel >= 3),
+const approvedUsers = computed(() =>
+  users.value.filter(u => u.approvalStatus === 'approved'),
 )
+
+const leaderGroups = computed(() => {
+  if (!leadersTarget.value) return { members: [] as UserInfo[], outsiders: [] as UserInfo[] }
+  const { kind, id } = leadersTarget.value
+  const key = kind === 'group' ? 'groupIds' : 'divisionIds'
+  const members: UserInfo[] = []
+  const outsiders: UserInfo[] = []
+  for (const u of approvedUsers.value) {
+    const ids = (u[key] as string[] | null) || []
+    if (ids.includes(id)) members.push(u)
+    else outsiders.push(u)
+  }
+  return { members, outsiders }
+})
 
 async function load() {
   loading.value = true
@@ -220,17 +235,37 @@ onMounted(load)
       <h3 style="margin: 0 0 8px;">
         设置负责人 - {{ leadersTarget?.name }}
       </h3>
-      <p class="hint" style="margin: 0 0 16px;">仅展示角色 ≥ 组长且已审核的用户</p>
+      <p class="hint" style="margin: 0 0 16px;">
+        勾选后若对方未加入本{{ leadersTarget?.kind === 'group' ? '组' : '兵种组' }}或角色低于组长，系统将自动补齐。
+      </p>
       <div class="leader-list">
-        <label v-for="u in eligibleLeaders" :key="u.id" class="leader-item">
-          <input
-            type="checkbox"
-            :checked="leadersSelected.includes(u.id)"
-            @change="toggleLeader(u.id)"
-          />
-          <span>{{ u.realName }} <small>({{ u.username }})</small></span>
-        </label>
-        <div v-if="!eligibleLeaders.length" class="empty">没有符合条件的用户</div>
+        <div v-if="leaderGroups.members.length" class="leader-section">
+          <div class="leader-section__title">已是本{{ leadersTarget?.kind === 'group' ? '组' : '兵种组' }}成员</div>
+          <label v-for="u in leaderGroups.members" :key="u.id" class="leader-item">
+            <input
+              type="checkbox"
+              :checked="leadersSelected.includes(u.id)"
+              @change="toggleLeader(u.id)"
+            />
+            <span class="leader-item__name">{{ u.realName }} <small>(@{{ u.username }})</small></span>
+            <span class="leader-item__role">{{ roleLabel(u.roleLevel, u.position) }}</span>
+          </label>
+        </div>
+        <div v-if="leaderGroups.outsiders.length" class="leader-section">
+          <div class="leader-section__title">非本{{ leadersTarget?.kind === 'group' ? '组' : '兵种组' }}成员 <span class="muted">（勾选后自动加入并提升为组长）</span></div>
+          <label v-for="u in leaderGroups.outsiders" :key="u.id" class="leader-item">
+            <input
+              type="checkbox"
+              :checked="leadersSelected.includes(u.id)"
+              @change="toggleLeader(u.id)"
+            />
+            <span class="leader-item__name">{{ u.realName }} <small>(@{{ u.username }})</small></span>
+            <span class="leader-item__role">{{ roleLabel(u.roleLevel, u.position) }}</span>
+          </label>
+        </div>
+        <div v-if="!leaderGroups.members.length && !leaderGroups.outsiders.length" class="empty">
+          没有已审核的用户
+        </div>
       </div>
       <div class="modal-actions">
         <van-button block plain @click="showLeaders = false">取消</van-button>
@@ -417,6 +452,22 @@ onMounted(load)
   border-radius: 8px;
 }
 
+.leader-section {
+  margin-bottom: 10px;
+}
+
+.leader-section__title {
+  font-size: 12px;
+  color: #64748b;
+  padding: 4px 4px 6px;
+  font-weight: 500;
+}
+
+.muted {
+  color: #94a3b8;
+  font-weight: 400;
+}
+
 .leader-item {
   display: flex;
   align-items: center;
@@ -425,6 +476,18 @@ onMounted(load)
   cursor: pointer;
   font-size: 13px;
   color: #0f172a;
+}
+
+.leader-item__name {
+  flex: 1;
+}
+
+.leader-item__role {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: #475569;
 }
 
 .leader-item:hover {
