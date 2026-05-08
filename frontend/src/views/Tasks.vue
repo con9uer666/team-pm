@@ -546,8 +546,12 @@ function ganttBarStyle(task: TaskWithMeta) {
 }
 
 onMounted(async () => {
-  await loadData()
   const prefillId = typeof route.query.prefillObjective === 'string' ? route.query.prefillObjective : null
+  if (prefillId) {
+    showCreate.value = true
+    router.replace({ query: {} })
+  }
+  await loadData()
   if (prefillId) {
     await ensureObjectives()
     const obj = objectives.value.find(o => o.id === prefillId)
@@ -558,9 +562,7 @@ onMounted(async () => {
         newTask.value.divisionId = obj.divisionId
       }
       newTask.value.objectiveId = obj.id
-      showCreate.value = true
     }
-    router.replace({ query: {} })
   }
 })
 </script>

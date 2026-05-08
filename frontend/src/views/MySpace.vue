@@ -37,7 +37,7 @@ onMounted(load)
 
     <template v-else>
       <section class="section" v-if="spaces.divisions.length">
-        <h2>兵种组</h2>
+        <h2><van-icon name="flag-o" class="section-icon" /> 兵种组</h2>
         <div class="grid">
           <div
             v-for="d in spaces.divisions"
@@ -45,9 +45,13 @@ onMounted(load)
             class="card card--division"
             @click="openSpace('division', d.id)"
           >
-            <div class="card__title">{{ d.name }}</div>
+            <van-icon name="flag-o" class="card__bg-icon" />
+            <div class="card__title">
+              <van-icon name="medal-o" class="card__title-icon" />
+              <span>{{ d.name }}</span>
+            </div>
             <div class="card__meta">
-              <span>{{ d.memberCount }} 人</span>
+              <span><van-icon name="friends-o" /> {{ d.memberCount }} 人</span>
               <span class="tag">兵种组</span>
             </div>
           </div>
@@ -55,7 +59,7 @@ onMounted(load)
       </section>
 
       <section class="section" v-if="spaces.groups.length">
-        <h2>技术组</h2>
+        <h2><van-icon name="apartment-o" class="section-icon" /> 技术组</h2>
         <div class="grid">
           <div
             v-for="g in spaces.groups"
@@ -63,9 +67,13 @@ onMounted(load)
             class="card card--group"
             @click="openSpace('group', g.id)"
           >
-            <div class="card__title">{{ g.name }}</div>
+            <van-icon name="apartment-o" class="card__bg-icon" />
+            <div class="card__title">
+              <van-icon name="setting-o" class="card__title-icon" />
+              <span>{{ g.name }}</span>
+            </div>
             <div class="card__meta">
-              <span>{{ g.memberCount }} 人</span>
+              <span><van-icon name="friends-o" /> {{ g.memberCount }} 人</span>
               <span class="tag">技术组</span>
             </div>
           </div>
@@ -109,6 +117,14 @@ onMounted(load)
   margin: 0 0 12px;
   font-size: 15px;
   color: var(--text-secondary, var(--text-primary));
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.section-icon {
+  font-size: 16px;
+  color: var(--text-primary);
 }
 
 .grid {
@@ -118,6 +134,8 @@ onMounted(load)
 }
 
 .card {
+  position: relative;
+  overflow: hidden;
   padding: 16px;
   border-radius: 14px;
   color: #fff;
@@ -127,6 +145,15 @@ onMounted(load)
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+}
+
+.card__bg-icon {
+  position: absolute;
+  right: -14px;
+  bottom: -14px;
+  font-size: 86px;
+  opacity: 0.14;
+  pointer-events: none;
 }
 
 .card:active {
@@ -142,8 +169,17 @@ onMounted(load)
 }
 
 .card__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 17px;
   font-weight: 600;
+  position: relative;
+  z-index: 1;
+}
+
+.card__title-icon {
+  font-size: 18px;
 }
 
 .card__meta {
@@ -152,6 +188,14 @@ onMounted(load)
   align-items: center;
   font-size: 12px;
   opacity: 0.92;
+  position: relative;
+  z-index: 1;
+}
+
+.card__meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .tag {
