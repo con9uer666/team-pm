@@ -32,14 +32,15 @@ async function handleBindClick() {
   try {
     const res = await wechatApi.getBindQrcode()
     if (!res.success || !res.qrcodeUrl) {
-      showToast({ message: res.message || '生成二维码失败', type: 'fail' })
+      showToast({ message: res.message || '生成二维码失败', type: 'fail', duration: 3000 })
       showBind.value = false
       return
     }
     qrcodeUrl.value = res.qrcodeUrl
     startPolling()
   } catch (e: any) {
-    showToast({ message: e.message || '生成二维码失败', type: 'fail' })
+    const msg = e?.message || e?.response?.data?.message || '生成二维码失败（接口未部署？）'
+    showToast({ message: msg, type: 'fail', duration: 3000 })
     showBind.value = false
   } finally {
     loadingQr.value = false

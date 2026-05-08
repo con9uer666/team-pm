@@ -18,7 +18,7 @@ export class WechatController {
   @Get('bind-qrcode')
   @UseGuards(AuthGuard('jwt'))
   async getBindQrcode(@Req() req: any) {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const url = await this.wechatService.createBindQrcode(userId);
     if (!url) {
       return { success: false, message: '微信推送未配置或生成二维码失败' };
