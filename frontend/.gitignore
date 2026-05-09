@@ -29,6 +29,14 @@ android/.cxx/
 android/keystore*
 
 
+# Capacitor iOS build artifacts
+ios/App/build/
+ios/DerivedData/
+ios/App/App.xcodeproj/xcuserdata/
+ios/App/App.xcodeproj/project.xcworkspace/xcuserdata/
+ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+ios/App/App/public/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
