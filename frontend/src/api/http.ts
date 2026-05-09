@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { apiBaseUrl, isNative } from '../utils/platform'
 import { getToken } from '../utils/storage'
+import router from '../router'
 
 const http = axios.create({
   baseURL: apiBaseUrl,
@@ -22,9 +23,8 @@ http.interceptors.response.use(
   (res) => res.data,
   (err) => {
     if (err.response?.status === 401) {
-      const isLoginPage = window.location.pathname === '/login'
-      if (!isLoginPage) {
-        window.location.href = '/login'
+      if (router.currentRoute.value.name !== 'login') {
+        router.replace('/login')
       }
     }
     return Promise.reject(err.response?.data || err)

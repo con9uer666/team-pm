@@ -55,10 +55,10 @@ npm run cap:sync:ios       # build:native 打包 + 灌进 ios/App/App/public/
 ### 6. 打开 Xcode 工程
 
 ```bash
-open ios/App/App.xcworkspace
+open ios/App/App.xcodeproj
 ```
 
-> ⚠ 用 `.xcworkspace`，不是 `.xcodeproj`。Capacitor 8 默认 SPM，工程文件名是 `App.xcodeproj`，但 `.xcworkspace` 会自动拉入 SPM 包。
+Capacitor 8 用 SPM，没有 `.xcworkspace`。Xcode 打开后第一次会自动 Resolve Package Graph，耐心等。
 
 ### 7. Xcode 里配置签名（只做一次）
 
@@ -78,7 +78,7 @@ cd ios/App
 
 # 编译 archive
 xcodebuild \
-  -workspace App.xcworkspace \
+  -project App.xcodeproj \
   -scheme App \
   -configuration Release \
   -destination 'generic/platform=iOS' \

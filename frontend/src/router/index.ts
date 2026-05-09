@@ -1,8 +1,9 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory, createWebHashHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { isNative } from '../utils/platform'
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: isNative ? createWebHashHistory() : createWebHistory(),
   routes: [
     {
       path: '/login',

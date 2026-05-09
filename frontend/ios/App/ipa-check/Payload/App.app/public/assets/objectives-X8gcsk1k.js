@@ -1,0 +1,1 @@
+import{n as e}from"./index-B3ZnzkNN.js";var t={create:t=>e.post(`/objectives`,t),list:(t={})=>e.get(`/objectives`,{params:t}),get:t=>e.get(`/objectives/${t}`),getTasks:t=>e.get(`/objectives/${t}/tasks`),update:(t,n)=>e.patch(`/objectives/${t}`,n),complete:t=>e.patch(`/objectives/${t}/complete`),remove:t=>e.delete(`/objectives/${t}`)};export{t};

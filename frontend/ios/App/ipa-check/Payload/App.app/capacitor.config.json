@@ -1,0 +1,13 @@
+{
+	"appId": "com.teampm.app",
+	"appName": "战队管理",
+	"webDir": "dist",
+	"android": {
+		"allowMixedContent": true
+	},
+	"packageClassList": [
+		"AppPlugin",
+		"GeolocationPlugin",
+		"PreferencesPlugin"
+	]
+}

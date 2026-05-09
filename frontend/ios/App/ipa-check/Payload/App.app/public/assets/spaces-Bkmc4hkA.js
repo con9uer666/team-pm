@@ -1,0 +1,1 @@
+import{n as e}from"./index-B3ZnzkNN.js";var t={getMy:()=>e.get(`/spaces/my`),getGroup:t=>e.get(`/spaces/group/${t}`),getDivision:t=>e.get(`/spaces/division/${t}`)};export{t};

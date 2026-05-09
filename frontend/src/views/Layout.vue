@@ -134,16 +134,16 @@ function switchToAdmin() {
     <!-- Mobile Bottom Tab -->
     <van-tabbar v-if="isMobile" route class="mobile-tabbar">
       <template v-if="!auth.isGuest">
-        <van-tabbar-item icon="home-o" to="/">首页</van-tabbar-item>
-        <van-tabbar-item icon="todo-list-o" to="/tasks">任务</van-tabbar-item>
-        <van-tabbar-item icon="apartment-o" to="/space">空间</van-tabbar-item>
-        <van-tabbar-item icon="bell" to="/notifications">通知</van-tabbar-item>
-        <van-tabbar-item icon="user-o" to="/profile">我的</van-tabbar-item>
+        <van-tabbar-item icon="home-o" :to="{ name: 'home' }">首页</van-tabbar-item>
+        <van-tabbar-item icon="todo-list-o" :to="{ name: 'tasks' }">任务</van-tabbar-item>
+        <van-tabbar-item icon="apartment-o" :to="{ name: 'space' }">空间</van-tabbar-item>
+        <van-tabbar-item icon="bell" :to="{ name: 'notifications' }">通知</van-tabbar-item>
+        <van-tabbar-item icon="user-o" :to="{ name: 'profile' }">我的</van-tabbar-item>
       </template>
       <template v-else>
-        <van-tabbar-item icon="cluster-o" to="/team-structure">架构</van-tabbar-item>
-        <van-tabbar-item icon="bell" to="/notifications">通知</van-tabbar-item>
-        <van-tabbar-item icon="user-o" to="/profile">我的</van-tabbar-item>
+        <van-tabbar-item icon="cluster-o" :to="{ name: 'team-structure' }">架构</van-tabbar-item>
+        <van-tabbar-item icon="bell" :to="{ name: 'notifications' }">通知</van-tabbar-item>
+        <van-tabbar-item icon="user-o" :to="{ name: 'profile' }">我的</van-tabbar-item>
       </template>
     </van-tabbar>
   </div>
@@ -157,7 +157,8 @@ function switchToAdmin() {
 
 .layout--mobile {
   flex-direction: column;
-  padding-bottom: 50px;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: calc(50px + env(safe-area-inset-bottom));
 }
 
 /* Sidebar */
@@ -389,5 +390,7 @@ function switchToAdmin() {
 
 .mobile-tabbar {
   box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06) !important;
+  padding-bottom: env(safe-area-inset-bottom) !important;
+  height: calc(50px + env(safe-area-inset-bottom)) !important;
 }
 </style>

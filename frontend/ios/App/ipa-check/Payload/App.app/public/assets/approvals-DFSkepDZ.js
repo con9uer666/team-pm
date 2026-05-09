@@ -1,0 +1,1 @@
+import{n as e}from"./index-B3ZnzkNN.js";var t={getMyStatus:()=>e.get(`/approvals/my-status`),getPending:()=>e.get(`/approvals/pending`),approve:(t,n)=>e.patch(`/approvals/${t}/approve`,n),reject:(t,n)=>e.patch(`/approvals/${t}/reject`,{reason:n})};export{t};
