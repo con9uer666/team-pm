@@ -9,6 +9,17 @@ const auth = useAuthStore()
 const isMobile = ref(window.innerWidth < 900)
 const sidebarCollapsed = ref(false)
 
+const userTabNames = ['home', 'tasks', 'space', 'notifications', 'profile']
+const guestTabNames = ['team-structure', 'notifications', 'profile']
+const activeTabIndex = computed(() => {
+  const list = auth.isGuest ? guestTabNames : userTabNames
+  const idx = list.indexOf(route.name as string)
+  return idx === -1 ? 0 : idx
+})
+function goTab(name: string) {
+  if (route.name !== name) router.push({ name })
+}
+
 function handleResize() {
   isMobile.value = window.innerWidth < 900
 }
@@ -132,18 +143,18 @@ function switchToAdmin() {
     </main>
 
     <!-- Mobile Bottom Tab -->
-    <van-tabbar v-if="isMobile" route class="mobile-tabbar">
+    <van-tabbar v-if="isMobile" v-model="activeTabIndex" class="mobile-tabbar">
       <template v-if="!auth.isGuest">
-        <van-tabbar-item icon="home-o" :to="{ name: 'home' }">首页</van-tabbar-item>
-        <van-tabbar-item icon="todo-list-o" :to="{ name: 'tasks' }">任务</van-tabbar-item>
-        <van-tabbar-item icon="apartment-o" :to="{ name: 'space' }">空间</van-tabbar-item>
-        <van-tabbar-item icon="bell" :to="{ name: 'notifications' }">通知</van-tabbar-item>
-        <van-tabbar-item icon="user-o" :to="{ name: 'profile' }">我的</van-tabbar-item>
+        <van-tabbar-item icon="home-o" @click="goTab('home')">首页</van-tabbar-item>
+        <van-tabbar-item icon="todo-list-o" @click="goTab('tasks')">任务</van-tabbar-item>
+        <van-tabbar-item icon="apartment-o" @click="goTab('space')">空间</van-tabbar-item>
+        <van-tabbar-item icon="bell" @click="goTab('notifications')">通知</van-tabbar-item>
+        <van-tabbar-item icon="user-o" @click="goTab('profile')">我的</van-tabbar-item>
       </template>
       <template v-else>
-        <van-tabbar-item icon="cluster-o" :to="{ name: 'team-structure' }">架构</van-tabbar-item>
-        <van-tabbar-item icon="bell" :to="{ name: 'notifications' }">通知</van-tabbar-item>
-        <van-tabbar-item icon="user-o" :to="{ name: 'profile' }">我的</van-tabbar-item>
+        <van-tabbar-item icon="cluster-o" @click="goTab('team-structure')">架构</van-tabbar-item>
+        <van-tabbar-item icon="bell" @click="goTab('notifications')">通知</van-tabbar-item>
+        <van-tabbar-item icon="user-o" @click="goTab('profile')">我的</van-tabbar-item>
       </template>
     </van-tabbar>
   </div>
@@ -157,7 +168,6 @@ function switchToAdmin() {
 
 .layout--mobile {
   flex-direction: column;
-  padding-top: env(safe-area-inset-top);
   padding-bottom: calc(50px + env(safe-area-inset-bottom));
 }
 
@@ -349,6 +359,13 @@ function switchToAdmin() {
   flex: 1;
   padding: 24px;
   min-height: 100vh;
+}
+
+.layout--mobile .main {
+  padding-top: calc(24px + env(safe-area-inset-top));
+  padding-left: calc(24px + env(safe-area-inset-left));
+  padding-right: calc(24px + env(safe-area-inset-right));
+  min-height: auto;
 }
 
 .main--with-sidebar {
