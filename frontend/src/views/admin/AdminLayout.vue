@@ -218,7 +218,6 @@ const roleLabel = computed(() => {
 .topbar {
   height: 56px;
   padding: 0 24px;
-  padding-top: env(safe-area-inset-top);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -309,6 +308,7 @@ const roleLabel = computed(() => {
   position: static;
   flex-direction: row;
   overflow-x: auto;
+  padding-top: env(safe-area-inset-top);
 }
 
 .admin-layout.mobile .admin-nav {
