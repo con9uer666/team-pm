@@ -4,9 +4,12 @@ import 'package:intl/intl.dart';
 
 import '../../../core/auth/auth_controller.dart';
 import '../../../core/config.dart';
+import '../../../core/models/role.dart';
 import '../../../core/network/dio_client.dart';
+import '../../../core/org/users_api.dart';
 import '../data/task_models.dart';
 import '../data/tasks_api.dart';
+import 'objective_picker_sheet.dart';
 import 'task_complete_sheet.dart';
 
 class TaskDetailSheet extends ConsumerStatefulWidget {
@@ -19,6 +22,31 @@ class TaskDetailSheet extends ConsumerStatefulWidget {
 
 class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
   bool _busy = false;
+  late TaskItem _task;
+  List<TaskItem>? _deps;
+  String? _depsError;
+
+  @override
+  void initState() {
+    super.initState();
+    _task = widget.task;
+    _loadDeps();
+  }
+
+  Future<void> _loadDeps() async {
+    try {
+      final api = ref.read(tasksApiProvider);
+      final deps = await api.getDependencies(_task.id);
+      if (!mounted) return;
+      setState(() {
+        _deps = deps;
+        _depsError = null;
+      });
+    } on Object catch (e) {
+      if (!mounted) return;
+      setState(() => _depsError = dioErrorMessage(e, '加载依赖失败'));
+    }
+  }
 
   Future<T?> _guard<T>(Future<T> Function() fn, {String fallbackError = '操作失败'}) async {
     if (_busy) return null;
@@ -37,10 +65,34 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
     }
   }
 
+  Future<void> _editObjective() async {
+    final outcome = await pickObjective(
+      context,
+      scope: _task.groupId != null
+          ? 'group'
+          : (_task.divisionId != null ? 'division' : null),
+      groupId: _task.groupId,
+      divisionId: _task.divisionId,
+      initialId: _task.objectiveId,
+    );
+    if (outcome == null) return;
+    final api = ref.read(tasksApiProvider);
+    final updated = await _guard(
+      () => api.updateObjective(_task.id, outcome.objectiveId),
+      fallbackError: '修改失败',
+    );
+    if (updated != null && mounted) {
+      setState(() => _task = updated);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('已更新关联目标')),
+      );
+    }
+  }
+
   Future<void> _approve(String reviewType) async {
     final api = ref.read(tasksApiProvider);
     final ok = await _guard(
-      () => api.review(id: widget.task.id, action: 'approve', reviewType: reviewType),
+      () => api.review(id: _task.id, action: 'approve', reviewType: reviewType),
       fallbackError: '审核失败',
     );
     if (ok != null && mounted) {
@@ -55,7 +107,7 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
     final api = ref.read(tasksApiProvider);
     final ok = await _guard(
       () => api.review(
-        id: widget.task.id,
+        id: _task.id,
         action: 'reject',
         reviewType: reviewType,
         reason: reason,
@@ -77,7 +129,7 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
-      builder: (_) => TaskCompleteSheet(taskId: widget.task.id),
+      builder: (_) => TaskCompleteSheet(taskId: _task.id),
     );
     if (ok == true && mounted) {
       Navigator.of(context).pop(true);
@@ -92,7 +144,7 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
     }
     final api = ref.read(tasksApiProvider);
     final ok = await _guard(
-      () => api.verifyCompletion(id: widget.task.id, action: action, reason: reason),
+      () => api.verifyCompletion(id: _task.id, action: action, reason: reason),
       fallbackError: '操作失败',
     );
     if (ok != null && mounted) {
@@ -105,11 +157,17 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final t = widget.task;
+    final t = _task;
     final style = taskStatusStyle(t.status);
     final auth = ref.watch(authControllerProvider);
+    final org = ref.watch(orgStructureProvider).valueOrNull;
     final isMine = auth.user?.id == t.assigneeId;
+    final isLeader = isLeaderLevel(auth.user?.roleLevel ?? 0);
     final dueFmt = DateFormat('yyyy-MM-dd HH:mm').format(t.dueDate.toLocal());
+    final creatorName = org?.userName(t.creatorId) ?? '';
+    final assigneeName = org?.userName(t.assigneeId) ?? '';
+    final divName = org?.divisionName(t.divisionId) ?? '';
+    final grpName = org?.groupName(t.groupId) ?? '';
 
     return DraggableScrollableSheet(
       initialChildSize: 0.72,
@@ -163,6 +221,20 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                       icon: Icons.priority_high,
                       label: '优先级',
                       value: _priorityLabel(t.priority),
+                    ),
+                    if (creatorName.isNotEmpty)
+                      _Row(icon: Icons.person_outline, label: '创建人', value: creatorName),
+                    if (assigneeName.isNotEmpty)
+                      _Row(icon: Icons.assignment_ind_outlined, label: '经办人', value: assigneeName),
+                    if (divName.isNotEmpty)
+                      _Row(icon: Icons.flag_outlined, label: '兵种组', value: divName),
+                    if (grpName.isNotEmpty)
+                      _Row(icon: Icons.engineering_outlined, label: '技术组', value: grpName),
+                    const SizedBox(height: 14),
+                    _ObjectiveSection(
+                      title: t.objectiveTitle,
+                      canEdit: isLeader && (t.groupId != null || t.divisionId != null),
+                      onEdit: _editObjective,
                     ),
                     if ((t.description ?? '').isNotEmpty) ...[
                       const SizedBox(height: 14),
@@ -265,11 +337,13 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                                     : const Color(0xFFEF4444),
                               ),
                               const SizedBox(width: 6),
-                              Text(
-                                '${r.reviewType == 'division' ? '兵种' : '技术组'} · ${r.status == 'approved' ? '通过' : '驳回'}',
-                                style: const TextStyle(fontSize: 13),
+                              Expanded(
+                                child: Text(
+                                  '${r.reviewType == 'division' ? '兵种' : '技术组'} · ${r.status == 'approved' ? '通过' : '驳回'}'
+                                  '${(org?.userName(r.reviewerId) ?? '').isNotEmpty ? ' · ${org!.userName(r.reviewerId)}' : ''}',
+                                  style: const TextStyle(fontSize: 13),
+                                ),
                               ),
-                              const Spacer(),
                               Text(
                                 DateFormat('MM-dd HH:mm').format(r.reviewedAt.toLocal()),
                                 style: const TextStyle(
@@ -281,12 +355,13 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                           ),
                         ),
                     ],
+                    _DependenciesSection(deps: _deps, error: _depsError),
                   ],
                 ),
               ),
             ),
             _ActionBar(
-              task: t,
+              task: _task,
               isMine: isMine,
               busy: _busy,
               onApprove: _approve,
@@ -582,4 +657,124 @@ Future<String?> _askReason(
     },
   );
   return res;
+}
+
+class _ObjectiveSection extends StatelessWidget {
+  const _ObjectiveSection({
+    required this.title,
+    required this.canEdit,
+    required this.onEdit,
+  });
+  final String? title;
+  final bool canEdit;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.flag_outlined, size: 16, color: Color(0xFF7C3AED)),
+          const SizedBox(width: 8),
+          const Text(
+            '关联目标',
+            style: TextStyle(fontSize: 13, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              (title == null || title!.isEmpty) ? '未关联' : title!,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: (title == null || title!.isEmpty)
+                    ? const Color(0xFF94A3B8)
+                    : const Color(0xFF0F172A),
+              ),
+              textAlign: TextAlign.right,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (canEdit)
+            TextButton(
+              onPressed: onEdit,
+              style: TextButton.styleFrom(
+                minimumSize: const Size(0, 28),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+              ),
+              child: const Text('修改', style: TextStyle(fontSize: 12)),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DependenciesSection extends StatelessWidget {
+  const _DependenciesSection({required this.deps, required this.error});
+  final List<TaskItem>? deps;
+  final String? error;
+
+  @override
+  Widget build(BuildContext context) {
+    if (error != null) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 14),
+        child: Text(error!, style: const TextStyle(fontSize: 12, color: Color(0xFFEF4444))),
+      );
+    }
+    if (deps == null || deps!.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _Heading('依赖任务'),
+          const SizedBox(height: 6),
+          for (final d in deps!)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                children: [
+                  Icon(
+                    d.status == TaskStatus.completed
+                        ? Icons.check_circle
+                        : Icons.radio_button_unchecked,
+                    size: 14,
+                    color: d.status == TaskStatus.completed
+                        ? const Color(0xFF22C55E)
+                        : const Color(0xFF94A3B8),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      d.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                  Text(
+                    taskStatusStyle(d.status).label,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: taskStatusStyle(d.status).fg,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }

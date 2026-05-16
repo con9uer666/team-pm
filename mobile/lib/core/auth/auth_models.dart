@@ -1,3 +1,5 @@
+import '../models/role.dart';
+
 enum ApprovalStatus { pending, approved, rejected }
 
 ApprovalStatus _parseApproval(String? v) {
@@ -11,6 +13,11 @@ ApprovalStatus _parseApproval(String? v) {
   }
 }
 
+List<String> _parseIdList(Object? raw) {
+  if (raw is! List) return const [];
+  return raw.map((e) => e.toString()).toList();
+}
+
 class AppUser {
   const AppUser({
     required this.id,
@@ -19,8 +26,12 @@ class AppUser {
     required this.roleLevel,
     required this.isSuperAdmin,
     required this.approvalStatus,
+    this.position,
+    this.groupIds = const [],
+    this.divisionIds = const [],
     this.wechatWorkId,
     this.email,
+    this.avatarUrl,
   });
 
   final String id;
@@ -29,11 +40,16 @@ class AppUser {
   final int roleLevel;
   final bool isSuperAdmin;
   final ApprovalStatus approvalStatus;
+  final Position? position;
+  final List<String> groupIds;
+  final List<String> divisionIds;
   final String? wechatWorkId;
   final String? email;
+  final String? avatarUrl;
 
   bool get isGuest => approvalStatus != ApprovalStatus.approved;
-  bool get canAdmin => isSuperAdmin || roleLevel >= 5;
+  bool get canAdmin => isSuperAdmin || roleLevel >= RoleLevel.projectManager;
+  bool get isLeader => isLeaderLevel(roleLevel);
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
     return AppUser(
@@ -43,8 +59,12 @@ class AppUser {
       roleLevel: (json['roleLevel'] ?? 1) as int,
       isSuperAdmin: (json['isSuperAdmin'] ?? false) as bool,
       approvalStatus: _parseApproval(json['approvalStatus'] as String?),
+      position: Position.fromJson(json['position']),
+      groupIds: _parseIdList(json['groupIds']),
+      divisionIds: _parseIdList(json['divisionIds']),
       wechatWorkId: json['wechatWorkId'] as String?,
       email: json['email'] as String?,
+      avatarUrl: json['avatarUrl'] as String?,
     );
   }
 }

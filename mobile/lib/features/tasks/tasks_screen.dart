@@ -9,11 +9,17 @@ import 'data/tasks_api.dart';
 import 'widgets/task_card.dart';
 import 'widgets/task_detail_sheet.dart';
 import 'widgets/task_create_sheet.dart';
+import 'widgets/task_person_view.dart';
+import 'widgets/task_gantt_view.dart';
 
 final _tasksProvider = FutureProvider.autoDispose<List<TaskItem>>((ref) async {
   final api = ref.watch(tasksApiProvider);
   return api.getMyScope(scope: 'all');
 });
+
+enum _TaskScope { own, team, all }
+
+enum _ViewMode { list, person, gantt }
 
 const _statusFilters = [
   _StatusOption(value: '', label: '全部'),
@@ -39,7 +45,8 @@ class TasksScreen extends ConsumerStatefulWidget {
 }
 
 class _TasksScreenState extends ConsumerState<TasksScreen> {
-  int _tabIndex = 0; // 0 = 我的, 1 = 组员
+  _TaskScope _scope = _TaskScope.own;
+  _ViewMode _viewMode = _ViewMode.list;
   String _statusFilter = '';
 
   Future<void> _refresh() async {
@@ -48,17 +55,38 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   }
 
   List<TaskItem> _applyFilters(List<TaskItem> all, String? myId) {
-    final scope = _tabIndex == 0 ? 'own' : 'team';
     Iterable<TaskItem> list = all;
-    if (scope == 'own') {
-      list = list.where((t) => t.assigneeId == myId);
-    } else {
-      list = list.where((t) => t.assigneeId != myId);
+    switch (_scope) {
+      case _TaskScope.own:
+        list = list.where((t) => t.assigneeId == myId);
+        break;
+      case _TaskScope.team:
+        list = list.where((t) => t.assigneeId != myId);
+        break;
+      case _TaskScope.all:
+        // no assignee filter
+        break;
     }
     if (_statusFilter.isNotEmpty) {
       list = list.where((t) => t.rawStatus == _statusFilter);
     }
     return list.toList();
+  }
+
+  Future<void> _openDetail(TaskItem t) async {
+    final changed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (_) => TaskDetailSheet(task: t),
+    );
+    if (changed == true) {
+      ref.invalidate(_tasksProvider);
+    }
   }
 
   @override
@@ -80,34 +108,39 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final created = await showModalBottomSheet<bool>(
-            context: context,
-            isScrollControlled: true,
-            useSafeArea: true,
-            backgroundColor: Colors.white,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-            ),
-            builder: (_) => TaskCreateSheet(isLeader: isLeader),
-          );
-          if (created == true) {
-            ref.invalidate(_tasksProvider);
-          }
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('新建任务'),
-      ),
+      floatingActionButton: isLeader
+          ? FloatingActionButton.extended(
+              onPressed: () async {
+                final created = await showModalBottomSheet<bool>(
+                  context: context,
+                  isScrollControlled: true,
+                  useSafeArea: true,
+                  backgroundColor: Colors.white,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+                  ),
+                  builder: (_) => const TaskCreateSheet(),
+                );
+                if (created == true) {
+                  ref.invalidate(_tasksProvider);
+                }
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('新建任务'),
+            )
+          : null,
       body: SafeArea(
         child: Column(
           children: [
-            _SegmentTabs(
-              index: _tabIndex,
-              isManager: isManager,
-              onChanged: (i) => setState(() => _tabIndex = i),
+            _ScopeTabs(
+              scope: _scope,
+              showAll: isManager,
+              onChanged: (s) => setState(() => _scope = s),
             ),
-            const SizedBox(height: 4),
+            _ViewModeBar(
+              mode: _viewMode,
+              onChanged: (m) => setState(() => _viewMode = m),
+            ),
             _StatusChips(
               active: _statusFilter,
               onChanged: (v) => setState(() => _statusFilter = v),
@@ -125,39 +158,42 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                   if (filtered.isEmpty) {
                     return _EmptyView(onRefresh: _refresh);
                   }
-                  return RefreshIndicator(
-                    onRefresh: _refresh,
-                    child: ListView.builder(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-                      itemCount: filtered.length,
-                      itemBuilder: (context, i) {
-                        final t = filtered[i];
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: TaskCard(
-                            task: t,
-                            isMine: t.assigneeId == myId,
-                            onTap: () async {
-                              final changed = await showModalBottomSheet<bool>(
-                                context: context,
-                                isScrollControlled: true,
-                                useSafeArea: true,
-                                backgroundColor: Colors.white,
-                                shape: const RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-                                ),
-                                builder: (_) => TaskDetailSheet(task: t),
-                              );
-                              if (changed == true) {
-                                ref.invalidate(_tasksProvider);
-                              }
-                            },
-                          ),
-                        );
-                      },
-                    ),
-                  );
+                  switch (_viewMode) {
+                    case _ViewMode.list:
+                      return RefreshIndicator(
+                        onRefresh: _refresh,
+                        child: ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                          itemCount: filtered.length,
+                          itemBuilder: (context, i) {
+                            final t = filtered[i];
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: TaskCard(
+                                task: t,
+                                isMine: t.assigneeId == myId,
+                                onTap: () => _openDetail(t),
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    case _ViewMode.person:
+                      return RefreshIndicator(
+                        onRefresh: _refresh,
+                        child: TaskPersonView(
+                          tasks: filtered,
+                          myId: myId,
+                          onTap: _openDetail,
+                        ),
+                      );
+                    case _ViewMode.gantt:
+                      return TaskGanttView(
+                        tasks: filtered,
+                        onTap: _openDetail,
+                      );
+                  }
                 },
               ),
             ),
@@ -168,18 +204,24 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   }
 }
 
-class _SegmentTabs extends StatelessWidget {
-  const _SegmentTabs({
-    required this.index,
-    required this.isManager,
+class _ScopeTabs extends StatelessWidget {
+  const _ScopeTabs({
+    required this.scope,
+    required this.showAll,
     required this.onChanged,
   });
-  final int index;
-  final bool isManager;
-  final ValueChanged<int> onChanged;
+  final _TaskScope scope;
+  final bool showAll;
+  final ValueChanged<_TaskScope> onChanged;
 
   @override
   Widget build(BuildContext context) {
+    final items = <_ScopeOption>[
+      const _ScopeOption(_TaskScope.own, '我的任务'),
+      _ScopeOption(_TaskScope.team, showAll ? '团队任务' : '组员任务'),
+      if (showAll) const _ScopeOption(_TaskScope.all, '全部任务'),
+    ];
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Container(
@@ -190,18 +232,18 @@ class _SegmentTabs extends StatelessWidget {
         ),
         child: Row(
           children: [
-            for (var i = 0; i < 2; i++)
+            for (final o in items)
               Expanded(
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: () => onChanged(i),
+                  onTap: () => onChanged(o.value),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
                     margin: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
-                      color: index == i ? Colors.white : Colors.transparent,
+                      color: scope == o.value ? Colors.white : Colors.transparent,
                       borderRadius: BorderRadius.circular(8),
-                      boxShadow: index == i
+                      boxShadow: scope == o.value
                           ? const [
                               BoxShadow(
                                 color: Color(0x14000000),
@@ -213,13 +255,11 @@ class _SegmentTabs extends StatelessWidget {
                     ),
                     alignment: Alignment.center,
                     child: Text(
-                      i == 0
-                          ? '我的任务'
-                          : (isManager ? '全部任务' : '组员任务'),
+                      o.label,
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
-                        color: index == i
+                        color: scope == o.value
                             ? const Color(0xFF0F172A)
                             : const Color(0xFF64748B),
                       ),
@@ -228,6 +268,39 @@ class _SegmentTabs extends StatelessWidget {
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScopeOption {
+  const _ScopeOption(this.value, this.label);
+  final _TaskScope value;
+  final String label;
+}
+
+class _ViewModeBar extends StatelessWidget {
+  const _ViewModeBar({required this.mode, required this.onChanged});
+  final _ViewMode mode;
+  final ValueChanged<_ViewMode> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+      child: SegmentedButton<_ViewMode>(
+        segments: const [
+          ButtonSegment(value: _ViewMode.list, label: Text('列表'), icon: Icon(Icons.view_list_outlined)),
+          ButtonSegment(value: _ViewMode.person, label: Text('人员'), icon: Icon(Icons.people_outline)),
+          ButtonSegment(value: _ViewMode.gantt, label: Text('Gantt'), icon: Icon(Icons.timeline_outlined)),
+        ],
+        selected: {mode},
+        showSelectedIcon: false,
+        onSelectionChanged: (s) => onChanged(s.first),
+        style: ButtonStyle(
+          visualDensity: VisualDensity.compact,
+          textStyle: WidgetStateProperty.all(const TextStyle(fontSize: 12)),
         ),
       ),
     );

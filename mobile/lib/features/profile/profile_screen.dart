@@ -3,6 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/auth/auth_controller.dart';
+import '../../core/models/role.dart';
+
+String _avatarInitial(String? name) {
+  final trimmed = (name ?? '').trim();
+  if (trimmed.isEmpty) return 'U';
+  // Use `characters.first` to handle surrogate pairs (emoji, CJK extension) safely.
+  return trimmed.characters.first;
+}
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -11,6 +19,7 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authControllerProvider);
     final user = auth.user;
+    final role = user == null ? '' : roleLabel(user.roleLevel, position: user.position);
 
     return Scaffold(
       appBar: AppBar(title: const Text('我的')),
@@ -27,9 +36,7 @@ class ProfileScreen extends ConsumerWidget {
                       radius: 28,
                       backgroundColor: const Color(0xFF3B82F6),
                       child: Text(
-                        (user?.realName.isNotEmpty ?? false)
-                            ? user!.realName.substring(0, 1)
-                            : 'U',
+                        _avatarInitial(user?.realName),
                         style: const TextStyle(color: Colors.white, fontSize: 20),
                       ),
                     ),
@@ -47,6 +54,10 @@ class ProfileScreen extends ConsumerWidget {
                             '@${user?.username ?? ''}',
                             style: const TextStyle(color: Color(0xFF64748B)),
                           ),
+                          if (role.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(role, style: const TextStyle(color: Color(0xFF64748B), fontSize: 13)),
+                          ],
                         ],
                       ),
                     ),
@@ -55,6 +66,53 @@ class ProfileScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 20),
+            Card(
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.workspaces_outline,
+                        color: Color(0xFF3B82F6)),
+                    title: const Text('我的空间'),
+                    subtitle: const Text('我所属的兵种 / 技术组'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.push('/spaces'),
+                  ),
+                  const Divider(height: 0),
+                  ListTile(
+                    leading: const Icon(Icons.account_tree_outlined,
+                        color: Color(0xFF0EA5E9)),
+                    title: const Text('团队架构'),
+                    subtitle: const Text('管理层 / 兵种组 / 技术组'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.push('/team-structure'),
+                  ),
+                  const Divider(height: 0),
+                  ListTile(
+                    leading: const Icon(Icons.event_outlined,
+                        color: Color(0xFF8B5CF6)),
+                    title: const Text('会议'),
+                    subtitle: const Text('查看 / 签到 / 纪要'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.push('/meetings'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (auth.canAdmin)
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.shield_outlined, color: Color(0xFF7C3AED)),
+                  title: const Text('进入管理后台'),
+                  subtitle: const Text('查看管理概览 / 审批用户 / 编辑组织 / 维护围栏'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () async {
+                    await ref.read(authControllerProvider.notifier).setAdminMode(true);
+                    if (context.mounted) context.go('/admin');
+                  },
+                ),
+              ),
+            if (auth.canAdmin) const SizedBox(height: 12),
             Card(
               child: Column(
                 children: [

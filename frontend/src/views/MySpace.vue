@@ -1,23 +1,73 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
-import { spacesApi, type MySpaces } from '../api/spaces'
+import { spacesApi, type MySpaces, type SpaceInfo } from '../api/spaces'
+import { orgApi, type GroupInfo, type DivisionInfo, type UserInfo } from '../api/users'
+import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
-const spaces = ref<MySpaces>({ groups: [], divisions: [] })
+const auth = useAuthStore()
+
+const mine = ref<MySpaces>({ groups: [], divisions: [] })
+const allUsers = ref<UserInfo[]>([])
+const allGroups = ref<GroupInfo[]>([])
+const allDivisions = ref<DivisionInfo[]>([])
 const loading = ref(false)
+const tab = ref<'mine' | 'all'>('mine')
+
+const canSeeAll = computed(
+  () => !!auth.user && (auth.user.isSuperAdmin || auth.user.roleLevel >= 5)
+)
 
 async function load() {
   loading.value = true
   try {
-    spaces.value = await spacesApi.getMy()
+    const tasks: Promise<unknown>[] = [
+      spacesApi.getMy().then(r => (mine.value = r)),
+    ]
+    if (canSeeAll.value) {
+      tasks.push(
+        orgApi.getStructure().then(s => {
+          allUsers.value = s.users
+          allGroups.value = s.groups
+          allDivisions.value = s.divisions
+        })
+      )
+    }
+    await Promise.all(tasks)
   } catch (e: any) {
     showToast(e?.message || '加载失败')
   } finally {
     loading.value = false
   }
 }
+
+const allDivisionCards = computed<SpaceInfo[]>(() =>
+  allDivisions.value.map(d => ({
+    id: d.id,
+    name: d.name,
+    leaderIds: d.leaderIds || [],
+    memberCount: allUsers.value.filter(u => (u.divisionIds || []).includes(d.id)).length,
+  }))
+)
+
+const allGroupCards = computed<SpaceInfo[]>(() =>
+  allGroups.value.map(g => ({
+    id: g.id,
+    name: g.name,
+    leaderIds: g.leaderIds || [],
+    memberCount: allUsers.value.filter(u => (u.groupIds || []).includes(g.id)).length,
+  }))
+)
+
+const shownDivisions = computed(() =>
+  tab.value === 'all' ? allDivisionCards.value : mine.value.divisions
+)
+
+const shownGroups = computed(() =>
+  tab.value === 'all' ? allGroupCards.value : mine.value.groups
+)
 
 function openSpace(scope: 'group' | 'division', id: string) {
   router.push({ name: 'space-detail', params: { scope, id } })
@@ -33,14 +83,21 @@ onMounted(load)
       <p class="sub">你所在的组别都会聚合在这里</p>
     </header>
 
+    <div v-if="canSeeAll" class="toggle-row">
+      <van-tabs v-model:active="tab" type="card" shrink>
+        <van-tab name="mine" title="我的" />
+        <van-tab name="all" title="全部" />
+      </van-tabs>
+    </div>
+
     <van-loading v-if="loading" class="loading" />
 
     <template v-else>
-      <section class="section" v-if="spaces.divisions.length">
+      <section class="section" v-if="shownDivisions.length">
         <h2><van-icon name="flag-o" class="section-icon" /> 兵种组</h2>
         <div class="grid">
           <div
-            v-for="d in spaces.divisions"
+            v-for="d in shownDivisions"
             :key="d.id"
             class="card card--division"
             @click="openSpace('division', d.id)"
@@ -58,11 +115,11 @@ onMounted(load)
         </div>
       </section>
 
-      <section class="section" v-if="spaces.groups.length">
+      <section class="section" v-if="shownGroups.length">
         <h2><van-icon name="apartment-o" class="section-icon" /> 技术组</h2>
         <div class="grid">
           <div
-            v-for="g in spaces.groups"
+            v-for="g in shownGroups"
             :key="g.id"
             class="card card--group"
             @click="openSpace('group', g.id)"
@@ -81,8 +138,8 @@ onMounted(load)
       </section>
 
       <van-empty
-        v-if="!spaces.groups.length && !spaces.divisions.length"
-        description="你还没有加入任何组"
+        v-if="!shownGroups.length && !shownDivisions.length"
+        :description="tab === 'all' ? '暂无任何兵种 / 技术组' : '你还没有加入任何组'"
       />
     </template>
   </div>
@@ -94,7 +151,7 @@ onMounted(load)
 }
 
 .page-header {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .page-header h1 {
@@ -107,6 +164,10 @@ onMounted(load)
   margin: 0;
   color: var(--text-muted);
   font-size: 13px;
+}
+
+.toggle-row {
+  margin-bottom: 12px;
 }
 
 .section {

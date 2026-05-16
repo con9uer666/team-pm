@@ -4,52 +4,70 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/auth/auth_controller.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/org/users_api.dart';
+import '../data/task_models.dart';
 import '../data/tasks_api.dart';
+import 'objective_picker_sheet.dart';
 
 class TaskCreateSheet extends ConsumerStatefulWidget {
-  const TaskCreateSheet({super.key, required this.isLeader});
-  final bool isLeader;
+  const TaskCreateSheet({
+    super.key,
+    this.prefillObjectiveId,
+    this.prefillGroupId,
+    this.prefillDivisionId,
+  });
+
+  /// When set, pre-selects the objective and locks the related group/division
+  /// to match the objective's scope so the new task is created under it.
+  /// Used by SpaceDetail's "新建任务" button on each objective card.
+  final String? prefillObjectiveId;
+  final String? prefillGroupId;
+  final String? prefillDivisionId;
 
   @override
   ConsumerState<TaskCreateSheet> createState() => _TaskCreateSheetState();
 }
 
 class _LeaderRole {
-  _LeaderRole({required this.type, required this.id, required this.label});
+  const _LeaderRole({required this.type, required this.id, required this.label});
   final String type; // 'division' | 'group'
   final String id;
   final String label;
-}
 
-class _OtherDimOpt {
-  const _OtherDimOpt({required this.id, required this.label});
-  final String id;
-  final String label;
+  @override
+  bool operator ==(Object other) =>
+      other is _LeaderRole && other.type == type && other.id == id;
+  @override
+  int get hashCode => Object.hash(type, id);
 }
 
 class _TaskCreateSheetState extends ConsumerState<TaskCreateSheet> {
   final _form = GlobalKey<FormState>();
   final _title = TextEditingController();
-  final _desc = TextEditingController();
   final _requirements = TextEditingController();
-  DateTime _due = DateTime.now().add(const Duration(days: 3));
-  int _priority = 0;
 
+  DateTime? _dueDate; // 仅日期，对齐 Web 端 <input type="date">
   bool _assignMode = false;
-  _LeaderRole? _role;
+  _LeaderRole? _leaderRole;
   String? _assigneeId;
 
-  // The "other dimension" — auto-filled when assignee has a single option,
-  // user-picked from [_otherOpts] when multiple. Mirrors Tasks.vue onAssigneeChange.
-  String? _otherDimId;
-  List<_OtherDimOpt> _otherOpts = const [];
+  String? _divisionId;
+  String? _groupId;
+  String? _objectiveId;
+  final Set<String> _selectedDeps = {};
 
   bool _busy = false;
 
   @override
+  void initState() {
+    super.initState();
+    _objectiveId = widget.prefillObjectiveId;
+    _groupId = widget.prefillGroupId;
+    _divisionId = widget.prefillDivisionId;
+  }
+
+  @override
   void dispose() {
     _title.dispose();
-    _desc.dispose();
     _requirements.dispose();
     super.dispose();
   }
@@ -59,128 +77,155 @@ class _TaskCreateSheetState extends ConsumerState<TaskCreateSheet> {
     final picked = await showDatePicker(
       context: context,
       firstDate: now.subtract(const Duration(days: 1)),
-      lastDate: now.add(const Duration(days: 365)),
-      initialDate: _due,
+      lastDate: now.add(const Duration(days: 365 * 2)),
+      initialDate: _dueDate ?? now.add(const Duration(days: 3)),
     );
-    if (picked == null || !mounted) return;
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(_due),
-    );
-    if (time == null) return;
+    if (picked == null) return;
+    setState(() => _dueDate = picked);
+  }
+
+  void _onAssignModeChange(bool v) {
     setState(() {
-      _due = DateTime(picked.year, picked.month, picked.day, time.hour, time.minute);
+      _assignMode = v;
+      if (!v) {
+        _leaderRole = null;
+        _assigneeId = null;
+        _divisionId = null;
+        _groupId = null;
+      }
     });
   }
 
-  /// Recompute the other-dimension state when assignee or role changes.
-  /// Mirrors Tasks.vue lines 194-211.
-  void _refreshOtherDim(OrgStructure org) {
-    if (_role == null || _assigneeId == null) {
-      _otherDimId = null;
-      _otherOpts = const [];
-      return;
-    }
-    UserInfo? assignee;
-    for (final u in org.users) {
-      if (u.id == _assigneeId) {
-        assignee = u;
-        break;
+  void _onLeaderRoleChange(_LeaderRole? r) {
+    setState(() {
+      _leaderRole = r;
+      _assigneeId = null;
+      if (r == null) {
+        _divisionId = null;
+        _groupId = null;
+      } else if (r.type == 'division') {
+        _divisionId = r.id;
+        _groupId = null;
+      } else {
+        _groupId = r.id;
+        _divisionId = null;
       }
-    }
-    if (assignee == null) {
-      _otherDimId = null;
-      _otherOpts = const [];
-      return;
-    }
-    final opts = <_OtherDimOpt>[];
-    if (_role!.type == 'division') {
-      // Need to pick a group. Use assignee.groupIds ∩ org.groups.
-      for (final g in org.groups) {
-        if (assignee.groupIds.contains(g.id)) {
-          opts.add(_OtherDimOpt(id: g.id, label: g.name));
-        }
-      }
-    } else {
-      // Need to pick a division.
-      for (final d in org.divisions) {
-        if (assignee.divisionIds.contains(d.id)) {
-          opts.add(_OtherDimOpt(id: d.id, label: d.name));
-        }
-      }
-    }
-    if (opts.length == 1) {
-      _otherDimId = opts.first.id;
-      _otherOpts = const [];
-    } else if (opts.isEmpty) {
-      _otherDimId = null;
-      _otherOpts = const [];
-    } else {
-      // Keep existing pick if still valid, else clear.
-      if (_otherDimId != null && !opts.any((o) => o.id == _otherDimId)) {
-        _otherDimId = null;
-      }
-      _otherOpts = opts;
-    }
+    });
   }
 
-  Future<void> _submit() async {
+  void _onAssigneeChange(String? id, OrgStructure org) {
+    setState(() {
+      _assigneeId = id;
+      final assignee = org.findUser(id);
+      final role = _leaderRole;
+      if (assignee == null || role == null) return;
+      // 自动填充另一维度（assignee 只属于一个时直接选中）
+      if (role.type == 'division') {
+        final opts =
+            org.groups.where((g) => assignee.groupIds.contains(g.id)).toList();
+        _groupId = opts.length == 1 ? opts.first.id : null;
+      } else {
+        final opts = org.divisions
+            .where((d) => assignee.divisionIds.contains(d.id))
+            .toList();
+        _divisionId = opts.length == 1 ? opts.first.id : null;
+      }
+    });
+  }
+
+  Future<void> _submit(OrgStructure org) async {
     if (!_form.currentState!.validate()) return;
+    if (_dueDate == null) {
+      _snack('请选择结案日期');
+      return;
+    }
     if (_assignMode) {
-      if (_role == null || _assigneeId == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('请选择身份和被分配人')),
-        );
+      if (_leaderRole == null) {
+        _snack('请选择派发身份');
         return;
       }
-      if (_otherDimId == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_otherOpts.isEmpty
-              ? '该成员不属于其它维度的任何组织，无法派发'
-              : '请选择${_role!.type == 'division' ? '技术组' : '兵种'}')),
-        );
+      if (_assigneeId == null) {
+        _snack('请选择指派人');
         return;
       }
-      if (_requirements.text.trim().isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('请填写验收标准')),
-        );
-        return;
-      }
+    }
+    if (_divisionId == null || _groupId == null) {
+      _snack('请选择兵种和技术组');
+      return;
+    }
+    if (_requirements.text.trim().isEmpty) {
+      _snack('请填写结案要求');
+      return;
     }
 
     setState(() => _busy = true);
     try {
       final api = ref.read(tasksApiProvider);
-      final isDivisionRole = _role?.type == 'division';
       await api.create(
         title: _title.text.trim(),
-        description: _desc.text.trim().isEmpty ? null : _desc.text.trim(),
-        completionRequirements:
-            _assignMode ? _requirements.text.trim() : null,
-        dueDate: _due,
-        priority: _priority,
-        divisionId: _assignMode
-            ? (isDivisionRole ? _role!.id : _otherDimId)
-            : null,
-        groupId: _assignMode
-            ? (isDivisionRole ? _otherDimId : _role!.id)
-            : null,
+        completionRequirements: _requirements.text.trim(),
+        dueDate: _dueDate!,
+        divisionId: _divisionId,
+        groupId: _groupId,
         assigneeId: _assignMode ? _assigneeId : null,
+        objectiveId: _objectiveId,
+        dependencyIds: _selectedDeps.isEmpty ? null : _selectedDeps.toList(),
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('任务已创建')),
-      );
+      _snack('任务已创建');
       Navigator.of(context).pop(true);
     } on Object catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(dioErrorMessage(e, '创建失败'))),
-        );
-      }
+      if (mounted) _snack(dioErrorMessage(e, '创建失败'));
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _snack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Future<void> _pickObjective(OrgStructure org) async {
+    // 优先匹配 Web 逻辑：依据已选 division/group 列目标。
+    final scope = _groupId != null ? 'group' : 'division';
+    final outcome = await pickObjective(
+      context,
+      scope: scope,
+      groupId: _groupId,
+      divisionId: _divisionId,
+      initialId: _objectiveId,
+    );
+    if (outcome == null) return;
+    setState(() => _objectiveId = outcome.objectiveId);
+  }
+
+  Future<void> _pickDependencies() async {
+    final api = ref.read(tasksApiProvider);
+    try {
+      final all = await api.getMyScope(scope: 'all');
+      if (!mounted) return;
+      final result = await showModalBottomSheet<Set<String>>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: Colors.white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+        ),
+        builder: (_) => _DependencyPickerSheet(
+          tasks: all,
+          initial: _selectedDeps.toSet(),
+        ),
+      );
+      if (result == null) return;
+      setState(() {
+        _selectedDeps
+          ..clear()
+          ..addAll(result);
+      });
+    } on Object catch (e) {
+      if (!mounted) return;
+      _snack(dioErrorMessage(e, '获取任务列表失败'));
     }
   }
 
@@ -188,276 +233,446 @@ class _TaskCreateSheetState extends ConsumerState<TaskCreateSheet> {
   Widget build(BuildContext context) {
     final auth = ref.watch(authControllerProvider);
     final userId = auth.user?.id;
-    final orgAsync = widget.isLeader ? ref.watch(orgStructureProvider) : null;
-
-    final leaderRoles = <_LeaderRole>[];
-    List<UserInfo> candidates = const [];
-    if (widget.isLeader && orgAsync != null) {
-      orgAsync.whenData((org) {
-        for (final d in org.divisions) {
-          if (d.leaderIds.contains(userId)) {
-            leaderRoles.add(_LeaderRole(type: 'division', id: d.id, label: '[兵种] ${d.name}'));
-          }
-        }
-        for (final g in org.groups) {
-          if (g.leaderIds.contains(userId)) {
-            leaderRoles.add(_LeaderRole(type: 'group', id: g.id, label: '[技术组] ${g.name}'));
-          }
-        }
-        if (_role != null) {
-          candidates = org.users.where((u) {
-            if (u.id == userId) return false;
-            if (_role!.type == 'division') return u.divisionIds.contains(_role!.id);
-            return u.groupIds.contains(_role!.id);
-          }).toList();
-        }
-        _refreshOtherDim(org);
-      });
-    }
+    final orgAsync = ref.watch(orgStructureProvider);
 
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: DraggableScrollableSheet(
-        initialChildSize: 0.85,
+        initialChildSize: 0.9,
         minChildSize: 0.6,
         maxChildSize: 0.95,
         expand: false,
         builder: (context, controller) {
-          return Form(
-            key: _form,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.symmetric(vertical: 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFCBD5E1),
-                    borderRadius: BorderRadius.circular(2),
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFCBD5E1),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 4, 20, 0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '创建本周任务',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                   ),
                 ),
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(20, 4, 20, 0),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      '新建任务',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+              Expanded(
+                child: orgAsync.when(
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Text(dioErrorMessage(e, '加载组织结构失败'),
+                          style: const TextStyle(color: Color(0xFFB91C1C))),
                     ),
                   ),
+                  data: (org) =>
+                      _buildForm(context, controller, org, userId),
                 ),
-                Expanded(
-                  child: ListView(
-                    controller: controller,
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                    children: [
-                      TextFormField(
-                        controller: _title,
-                        decoration: const InputDecoration(
-                          labelText: '任务标题',
-                          hintText: '简短描述',
-                        ),
-                        validator: (v) => (v == null || v.trim().isEmpty) ? '请输入标题' : null,
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: _desc,
-                        decoration: const InputDecoration(
-                          labelText: '描述（可选）',
-                          hintText: '补充任务背景或要求',
-                        ),
-                        maxLines: 3,
-                      ),
-                      const SizedBox(height: 12),
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.schedule),
-                        title: const Text('截止时间'),
-                        subtitle: Text(
-                          '${_due.year}-${_due.month.toString().padLeft(2, '0')}-${_due.day.toString().padLeft(2, '0')} '
-                          '${_due.hour.toString().padLeft(2, '0')}:${_due.minute.toString().padLeft(2, '0')}',
-                        ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: _pickDate,
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(Icons.priority_high, color: Color(0xFF94A3B8)),
-                          const SizedBox(width: 8),
-                          const Text('优先级'),
-                          const Spacer(),
-                          SegmentedButton<int>(
-                            segments: const [
-                              ButtonSegment(value: 0, label: Text('普通')),
-                              ButtonSegment(value: 1, label: Text('重要')),
-                              ButtonSegment(value: 2, label: Text('紧急')),
-                            ],
-                            selected: {_priority},
-                            onSelectionChanged: (s) => setState(() => _priority = s.first),
-                          ),
-                        ],
-                      ),
-                      if (widget.isLeader) ...[
-                        const SizedBox(height: 16),
-                        SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: const Text('分配给组员'),
-                          subtitle: const Text('关闭则分配给自己'),
-                          value: _assignMode,
-                          onChanged: leaderRoles.isEmpty
-                              ? null
-                              : (v) => setState(() {
-                                    _assignMode = v;
-                                    if (!v) {
-                                      _role = null;
-                                      _assigneeId = null;
-                                      _otherDimId = null;
-                                      _otherOpts = const [];
-                                    }
-                                  }),
-                        ),
-                        if (_assignMode) ...[
-                          const SizedBox(height: 8),
-                          if (orgAsync?.isLoading == true)
-                            const Center(child: CircularProgressIndicator())
-                          else ...[
-                            DropdownButtonFormField<_LeaderRole>(
-                              initialValue: _role,
-                              decoration: const InputDecoration(labelText: '我的身份'),
-                              items: [
-                                for (final r in leaderRoles)
-                                  DropdownMenuItem(value: r, child: Text(r.label)),
-                              ],
-                              onChanged: (v) => setState(() {
-                                _role = v;
-                                _assigneeId = null;
-                                _otherDimId = null;
-                                _otherOpts = const [];
-                              }),
-                            ),
-                            const SizedBox(height: 12),
-                            DropdownButtonFormField<String>(
-                              initialValue: _assigneeId,
-                              decoration: const InputDecoration(labelText: '被分配人'),
-                              items: [
-                                for (final u in candidates)
-                                  DropdownMenuItem(
-                                    value: u.id,
-                                    child: Text('${u.realName} (@${u.username})'),
-                                  ),
-                              ],
-                              onChanged: (v) => setState(() {
-                                _assigneeId = v;
-                                _otherDimId = null;
-                              }),
-                            ),
-                            if (_assigneeId != null && _otherOpts.isNotEmpty) ...[
-                              const SizedBox(height: 12),
-                              DropdownButtonFormField<String>(
-                                initialValue: _otherDimId,
-                                decoration: InputDecoration(
-                                  labelText: _role?.type == 'division'
-                                      ? '所属技术组'
-                                      : '所属兵种',
-                                  helperText: '该成员属于多个，请手动选择',
-                                ),
-                                items: [
-                                  for (final o in _otherOpts)
-                                    DropdownMenuItem(value: o.id, child: Text(o.label)),
-                                ],
-                                onChanged: (v) => setState(() => _otherDimId = v),
-                              ),
-                            ],
-                            if (_assigneeId != null &&
-                                _otherOpts.isEmpty &&
-                                _otherDimId == null) ...[
-                              const SizedBox(height: 12),
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFEF2F2),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: const Color(0xFFFCA5A5)),
-                                ),
-                                child: const Row(
-                                  children: [
-                                    Icon(Icons.error_outline,
-                                        size: 16, color: Color(0xFFDC2626)),
-                                    SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        '该成员不属于其它维度的任何组织，无法派发',
-                                        style: TextStyle(
-                                            color: Color(0xFFB91C1C), fontSize: 13),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                            if (_otherDimId != null) ...[
-                              const SizedBox(height: 12),
-                              TextFormField(
-                                controller: _requirements,
-                                decoration: const InputDecoration(
-                                  labelText: '验收标准',
-                                  hintText: '说明任务完成的判定条件',
-                                ),
-                                maxLines: 3,
-                                validator: (v) {
-                                  if (!_assignMode) return null;
-                                  if (v == null || v.trim().isEmpty) {
-                                    return '请填写验收标准';
-                                  }
-                                  return null;
-                                },
-                              ),
-                            ],
-                          ],
-                        ],
-                      ],
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: EdgeInsets.fromLTRB(
-                      20, 10, 20, 12 + MediaQuery.of(context).padding.bottom),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: _busy ? null : () => Navigator.of(context).pop(),
-                          child: const Text('取消'),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: _busy ? null : _submit,
-                          child: _busy
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2.4, color: Colors.white),
-                                )
-                              : const Text('提交'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+              ),
+              _buildActions(context, orgAsync.valueOrNull),
+            ],
           );
         },
       ),
+    );
+  }
+
+  Widget _buildForm(BuildContext context, ScrollController controller,
+      OrgStructure org, String? userId) {
+    final me = org.findUser(userId);
+
+    final leaderRoles = <_LeaderRole>[
+      for (final d in org.divisions)
+        if (d.leaderIds.contains(userId))
+          _LeaderRole(type: 'division', id: d.id, label: '[兵种] ${d.name}'),
+      for (final g in org.groups)
+        if (g.leaderIds.contains(userId))
+          _LeaderRole(type: 'group', id: g.id, label: '[技术组] ${g.name}'),
+    ];
+
+    final myDivisions = me == null
+        ? <DivisionInfo>[]
+        : org.divisions.where((d) => me.divisionIds.contains(d.id)).toList();
+    final myGroups = me == null
+        ? <GroupInfo>[]
+        : org.groups.where((g) => me.groupIds.contains(g.id)).toList();
+
+    final assignableMembers = _leaderRole == null
+        ? <UserInfo>[]
+        : org.users.where((u) {
+            if (u.id == userId) return false;
+            return _leaderRole!.type == 'division'
+                ? u.divisionIds.contains(_leaderRole!.id)
+                : u.groupIds.contains(_leaderRole!.id);
+          }).toList();
+
+    final assignee = _assignMode ? org.findUser(_assigneeId) : null;
+
+    return Form(
+      key: _form,
+      child: ListView(
+        controller: controller,
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+        children: [
+          // 1. 派发模式开关（仅 leader 可见）
+          if (leaderRoles.isNotEmpty)
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('派发任务'),
+              subtitle: const Text('为组员创建任务'),
+              value: _assignMode,
+              onChanged: _onAssignModeChange,
+            ),
+
+          // 2. 派发身份 + 指派人（仅派发模式）
+          if (_assignMode) ...[
+            const SizedBox(height: 8),
+            DropdownButtonFormField<_LeaderRole>(
+              initialValue: _leaderRole,
+              decoration: const InputDecoration(labelText: '派发身份 *'),
+              items: [
+                for (final r in leaderRoles)
+                  DropdownMenuItem(value: r, child: Text(r.label)),
+              ],
+              onChanged: _onLeaderRoleChange,
+            ),
+            if (_leaderRole != null) ...[
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: _assigneeId,
+                decoration: const InputDecoration(labelText: '指派人 *'),
+                items: [
+                  for (final m in assignableMembers)
+                    DropdownMenuItem(
+                      value: m.id,
+                      child: Text(m.realName.isEmpty ? m.username : m.realName),
+                    ),
+                ],
+                onChanged: (v) => _onAssigneeChange(v, org),
+              ),
+            ],
+          ],
+
+          // 3. 任务内容
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _title,
+            decoration: const InputDecoration(
+              labelText: '任务内容 *',
+              hintText: '描述你本周要完成的任务',
+            ),
+            maxLines: 3,
+            minLines: 1,
+            validator: (v) =>
+                (v == null || v.trim().isEmpty) ? '请填写任务内容' : null,
+          ),
+
+          // 4. 兵种 + 技术组
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            initialValue: _divisionId,
+            decoration: const InputDecoration(labelText: '兵种 *'),
+            items: _buildDivisionItems(
+              org,
+              myDivisions,
+              assignee,
+            ),
+            onChanged: _shouldDisableDivision()
+                ? null
+                : (v) => setState(() => _divisionId = v),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: _groupId,
+            decoration: const InputDecoration(labelText: '技术组 *'),
+            items: _buildGroupItems(
+              org,
+              myGroups,
+              assignee,
+            ),
+            onChanged: _shouldDisableGroup()
+                ? null
+                : (v) => setState(() => _groupId = v),
+          ),
+
+          // 5. 结案日期 + 结案要求
+          const SizedBox(height: 16),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.event),
+            title: const Text('结案日期 *'),
+            subtitle: Text(_dueDate == null
+                ? '请选择日期'
+                : '${_dueDate!.year}-${_dueDate!.month.toString().padLeft(2, '0')}-${_dueDate!.day.toString().padLeft(2, '0')}'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _pickDate,
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _requirements,
+            decoration: const InputDecoration(
+              labelText: '结案要求 *',
+              hintText: '任务完成的验收标准',
+            ),
+            maxLines: 2,
+            minLines: 1,
+            validator: (v) =>
+                (v == null || v.trim().isEmpty) ? '请填写结案要求' : null,
+          ),
+
+          // 6. 关联目标
+          const SizedBox(height: 16),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.flag_outlined, color: Color(0xFF7C3AED)),
+            title: const Text('关联目标'),
+            subtitle: Text(_objectiveId == null ? '不关联（可选）' : '已选择'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _pickObjective(org),
+          ),
+
+          // 7. 关联任务（前置依赖）
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.link, color: Color(0xFF3B82F6)),
+            title: const Text('关联任务'),
+            subtitle: Text(_selectedDeps.isEmpty
+                ? '无（可选）'
+                : '已选 ${_selectedDeps.length} 个'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _pickDependencies,
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool _shouldDisableDivision() =>
+      widget.prefillDivisionId != null ||
+      (_assignMode && _leaderRole?.type == 'division');
+
+  bool _shouldDisableGroup() =>
+      widget.prefillGroupId != null ||
+      (_assignMode && _leaderRole?.type == 'group');
+
+  List<DropdownMenuItem<String>> _buildDivisionItems(
+    OrgStructure org,
+    List<DivisionInfo> myDivisions,
+    UserInfo? assignee,
+  ) {
+    if (widget.prefillDivisionId != null) {
+      final d = org.findDivision(widget.prefillDivisionId);
+      return [
+        if (d != null) DropdownMenuItem(value: d.id, child: Text(d.name)),
+      ];
+    }
+    if (_assignMode) {
+      if (_leaderRole?.type == 'division') {
+        final d = org.findDivision(_leaderRole!.id);
+        return [
+          if (d != null) DropdownMenuItem(value: d.id, child: Text(d.name)),
+        ];
+      }
+      if (_leaderRole?.type == 'group' && assignee != null) {
+        return [
+          for (final d in org.divisions)
+            if (assignee.divisionIds.contains(d.id))
+              DropdownMenuItem(value: d.id, child: Text(d.name)),
+        ];
+      }
+      return const [];
+    }
+    return [
+      for (final d in myDivisions)
+        DropdownMenuItem(value: d.id, child: Text(d.name)),
+    ];
+  }
+
+  List<DropdownMenuItem<String>> _buildGroupItems(
+    OrgStructure org,
+    List<GroupInfo> myGroups,
+    UserInfo? assignee,
+  ) {
+    if (widget.prefillGroupId != null) {
+      final g = org.findGroup(widget.prefillGroupId);
+      return [
+        if (g != null) DropdownMenuItem(value: g.id, child: Text(g.name)),
+      ];
+    }
+    if (_assignMode) {
+      if (_leaderRole?.type == 'group') {
+        final g = org.findGroup(_leaderRole!.id);
+        return [
+          if (g != null) DropdownMenuItem(value: g.id, child: Text(g.name)),
+        ];
+      }
+      if (_leaderRole?.type == 'division' && assignee != null) {
+        return [
+          for (final g in org.groups)
+            if (assignee.groupIds.contains(g.id))
+              DropdownMenuItem(value: g.id, child: Text(g.name)),
+        ];
+      }
+      return const [];
+    }
+    return [
+      for (final g in myGroups)
+        DropdownMenuItem(value: g.id, child: Text(g.name)),
+    ];
+  }
+
+  Widget _buildActions(BuildContext context, OrgStructure? org) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+          20, 10, 20, 12 + MediaQuery.of(context).padding.bottom),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              onPressed: _busy ? null : () => Navigator.of(context).pop(),
+              child: const Text('取消'),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: FilledButton(
+              onPressed: (_busy || org == null) ? null : () => _submit(org),
+              child: _busy
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2.4, color: Colors.white),
+                    )
+                  : const Text('提交'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DependencyPickerSheet extends StatefulWidget {
+  const _DependencyPickerSheet({required this.tasks, required this.initial});
+  final List<TaskItem> tasks;
+  final Set<String> initial;
+
+  @override
+  State<_DependencyPickerSheet> createState() => _DependencyPickerSheetState();
+}
+
+class _DependencyPickerSheetState extends State<_DependencyPickerSheet> {
+  late Set<String> _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = Set.of(widget.initial);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      minChildSize: 0.45,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (context, controller) {
+        return Column(
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFCBD5E1),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 4, 20, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('选择关联任务',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+              ),
+            ),
+            Expanded(
+              child: widget.tasks.isEmpty
+                  ? const Center(
+                      child: Text('暂无任务',
+                          style: TextStyle(color: Color(0xFF94A3B8))),
+                    )
+                  : ListView.builder(
+                      controller: controller,
+                      padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+                      itemCount: widget.tasks.length,
+                      itemBuilder: (_, i) {
+                        final t = widget.tasks[i];
+                        final selected = _selected.contains(t.id);
+                        return CheckboxListTile(
+                          value: selected,
+                          onChanged: (v) => setState(() {
+                            if (v == true) {
+                              _selected.add(t.id);
+                            } else {
+                              _selected.remove(t.id);
+                            }
+                          }),
+                          title: Text(t.title,
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                          subtitle: Text(taskStatusStyle(t.status).label,
+                              style: TextStyle(
+                                  color: taskStatusStyle(t.status).fg,
+                                  fontSize: 12)),
+                          dense: true,
+                        );
+                      },
+                    ),
+            ),
+            Container(
+              padding: EdgeInsets.fromLTRB(
+                  16, 10, 16, 12 + MediaQuery.of(context).padding.bottom),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('取消'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () => Navigator.of(context).pop(_selected),
+                      child: const Text('确认'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

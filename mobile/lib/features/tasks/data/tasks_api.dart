@@ -95,6 +95,53 @@ class TasksApi {
     final data = await _client.patch<Map<String, dynamic>>('/tasks/$id/verify-completion', body: body);
     return TaskItem.fromJson(data);
   }
+
+  Future<TaskItem> getById(String id) async {
+    final data = await _client.get<Map<String, dynamic>>('/tasks/$id');
+    return TaskItem.fromJson(data);
+  }
+
+  Future<List<TaskReview>> getReviews(String id) async {
+    final data = await _client.get<List<dynamic>>('/tasks/$id/reviews');
+    return data.map((e) => TaskReview.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<List<String>> getReviewableTypes(String id) async {
+    final data = await _client.get<List<dynamic>>('/tasks/$id/reviewable-types');
+    return data.map((e) => e.toString()).toList();
+  }
+
+  Future<List<TaskItem>> getDependencies(String id) async {
+    final data = await _client.get<List<dynamic>>('/tasks/$id/dependencies');
+    return data.map((e) => TaskItem.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<TaskItem> updateObjective(String id, String? objectiveId) async {
+    final data = await _client.patch<Map<String, dynamic>>(
+      '/tasks/$id/objective',
+      body: {'objectiveId': objectiveId},
+    );
+    return TaskItem.fromJson(data);
+  }
+
+  Future<TaskItem> resubmit({
+    required String id,
+    String? title,
+    String? description,
+    DateTime? dueDate,
+  }) async {
+    final body = <String, dynamic>{
+      if (title != null) 'title': title,
+      if (description != null) 'description': description,
+      if (dueDate != null) 'dueDate': dueDate.toUtc().toIso8601String(),
+    };
+    final data = await _client.patch<Map<String, dynamic>>('/tasks/$id/resubmit', body: body);
+    return TaskItem.fromJson(data);
+  }
+
+  Future<void> delete(String id) async {
+    await _client.delete<dynamic>('/tasks/$id');
+  }
 }
 
 final tasksApiProvider = Provider<TasksApi>((ref) {

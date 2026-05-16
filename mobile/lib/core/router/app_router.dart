@@ -6,9 +6,15 @@ import '../../features/attendance/attendance_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
 import '../../features/home/home_screen.dart';
+import '../../features/meetings/meetings_screen.dart';
+import '../../features/notifications/notifications_screen.dart';
 import '../../features/pending/pending_screen.dart';
 import '../../features/profile/profile_screen.dart';
+import '../../features/spaces/my_space_screen.dart';
+import '../../features/spaces/space_detail_screen.dart';
 import '../../features/tasks/tasks_screen.dart';
+import '../../features/team_structure/team_structure_screen.dart';
+import '../../shared/widgets/admin_shell.dart';
 import '../../shared/widgets/main_scaffold.dart';
 import '../auth/auth_controller.dart';
 import 'router_refresh.dart';
@@ -18,6 +24,17 @@ const _guestAllowed = {'pending', 'profile', 'notifications', 'team-structure'};
 
 /// Routes that don't require auth.
 const _publicRoutes = {'login', 'register'};
+
+/// Route names that require admin mode (canAdmin && adminMode).
+const _adminRoutes = {
+  'admin-dashboard',
+  'admin-users',
+  'admin-org',
+  'admin-tasks',
+  'admin-meetings',
+  'admin-objectives',
+  'admin-fences',
+};
 
 final routerProvider = Provider<GoRouter>((ref) {
   final refresh = RouterRefreshNotifier(ref, authControllerProvider);
@@ -59,6 +76,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         return '/pending';
       }
 
+      // Admin routes require canAdmin + adminMode toggle.
+      if (_adminRoutes.contains(name)) {
+        if (!auth.canAdmin || !auth.adminMode) return '/';
+      }
+
       return null;
     },
     routes: [
@@ -88,22 +110,101 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/',
             name: 'home',
-            builder: (_, _) => const HomeScreen(),
+            pageBuilder: (_, _) =>
+                const NoTransitionPage(child: HomeScreen()),
           ),
           GoRoute(
             path: '/tasks',
             name: 'tasks',
-            builder: (_, _) => const TasksScreen(),
+            pageBuilder: (_, _) =>
+                const NoTransitionPage(child: TasksScreen()),
           ),
           GoRoute(
             path: '/attendance',
             name: 'attendance',
-            builder: (_, _) => const AttendanceScreen(),
+            pageBuilder: (_, _) =>
+                const NoTransitionPage(child: AttendanceScreen()),
           ),
           GoRoute(
             path: '/profile',
             name: 'profile',
-            builder: (_, _) => const ProfileScreen(),
+            pageBuilder: (_, _) =>
+                const NoTransitionPage(child: ProfileScreen()),
+          ),
+          GoRoute(
+            path: '/notifications',
+            name: 'notifications',
+            builder: (_, _) => const NotificationsScreen(),
+          ),
+          GoRoute(
+            path: '/team-structure',
+            name: 'team-structure',
+            builder: (_, _) => const TeamStructureScreen(),
+          ),
+          GoRoute(
+            path: '/spaces',
+            name: 'my-space',
+            builder: (_, _) => const MySpaceScreen(),
+          ),
+          GoRoute(
+            path: '/spaces/:scope/:id',
+            name: 'space-detail',
+            builder: (_, state) => SpaceDetailScreen(
+              scope: state.pathParameters['scope']!,
+              id: state.pathParameters['id']!,
+            ),
+          ),
+          GoRoute(
+            path: '/meetings',
+            name: 'meetings',
+            builder: (_, _) => const MeetingsScreen(),
+          ),
+        ],
+      ),
+      ShellRoute(
+        builder: (context, state, child) => AdminShell(child: child),
+        routes: [
+          GoRoute(
+            path: '/admin',
+            name: 'admin-dashboard',
+            pageBuilder: (_, _) => const NoTransitionPage(
+                child: AdminPlaceholderScreen(title: '管理概览')),
+          ),
+          GoRoute(
+            path: '/admin/users',
+            name: 'admin-users',
+            pageBuilder: (_, _) => const NoTransitionPage(
+                child: AdminPlaceholderScreen(title: '用户管理')),
+          ),
+          GoRoute(
+            path: '/admin/org',
+            name: 'admin-org',
+            pageBuilder: (_, _) => const NoTransitionPage(
+                child: AdminPlaceholderScreen(title: '组织管理')),
+          ),
+          GoRoute(
+            path: '/admin/tasks',
+            name: 'admin-tasks',
+            pageBuilder: (_, _) => const NoTransitionPage(
+                child: AdminPlaceholderScreen(title: '任务管理')),
+          ),
+          GoRoute(
+            path: '/admin/meetings',
+            name: 'admin-meetings',
+            pageBuilder: (_, _) => const NoTransitionPage(
+                child: AdminPlaceholderScreen(title: '会议管理')),
+          ),
+          GoRoute(
+            path: '/admin/objectives',
+            name: 'admin-objectives',
+            pageBuilder: (_, _) => const NoTransitionPage(
+                child: AdminPlaceholderScreen(title: '目标管理')),
+          ),
+          GoRoute(
+            path: '/admin/fences',
+            name: 'admin-fences',
+            pageBuilder: (_, _) => const NoTransitionPage(
+                child: AdminPlaceholderScreen(title: '围栏管理')),
           ),
         ],
       ),

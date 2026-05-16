@@ -408,15 +408,20 @@ class _QuickActions extends StatelessWidget {
           gradient: AppTheme.gradBlue,
           route: '/tasks'),
       const _QuickAction(
-          icon: Icons.location_on_rounded,
-          label: '打卡',
-          gradient: AppTheme.gradGreen,
-          route: '/attendance'),
+          icon: Icons.workspaces_outline,
+          label: '我的空间',
+          gradient: AppTheme.gradCyan,
+          route: '/spaces'),
       const _QuickAction(
           icon: Icons.event_rounded,
           label: '会议',
           gradient: AppTheme.gradPurple,
           route: '/meetings'),
+      const _QuickAction(
+          icon: Icons.location_on_rounded,
+          label: '打卡',
+          gradient: AppTheme.gradGreen,
+          route: '/attendance'),
       const _QuickAction(
           icon: Icons.notifications_rounded,
           label: '通知',
@@ -434,8 +439,10 @@ class _QuickActions extends StatelessWidget {
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 14),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              spacing: 4,
+              runSpacing: 14,
               children: items,
             ),
           ],
@@ -462,10 +469,10 @@ class _QuickAction extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: () {
-        if (route == '/meetings' || route == '/notifications') {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('该模块正在迁移中...')),
-          );
+        if (route == '/meetings' ||
+            route == '/notifications' ||
+            route == '/spaces') {
+          context.push(route);
           return;
         }
         context.go(route);

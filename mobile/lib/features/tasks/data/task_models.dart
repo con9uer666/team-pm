@@ -111,6 +111,12 @@ class TaskItem {
     required this.reviews,
     required this.reviewableTypes,
     required this.canVerifyCompletion,
+    required this.createdAt,
+    this.groupId,
+    this.divisionId,
+    this.objectiveId,
+    this.objectiveTitle,
+    this.dependencyIds = const [],
   });
 
   final String id;
@@ -130,9 +136,23 @@ class TaskItem {
   final List<TaskReview> reviews;
   final List<String> reviewableTypes;
   final bool canVerifyCompletion;
+  final DateTime createdAt;
+  final String? groupId;
+  final String? divisionId;
+  final String? objectiveId;
+  final String? objectiveTitle;
+  final List<String> dependencyIds;
 
   factory TaskItem.fromJson(Map<String, dynamic> j) {
     final rawStatus = (j['status'] ?? '') as String;
+    // Backend may inline `objective: { id, title }` or just `objectiveId`.
+    final objectiveJson = j['objective'];
+    String? oid = j['objectiveId'] as String?;
+    String? otitle;
+    if (objectiveJson is Map<String, dynamic>) {
+      oid ??= objectiveJson['id'] as String?;
+      otitle = objectiveJson['title'] as String?;
+    }
     return TaskItem(
       id: j['id'] as String,
       title: (j['title'] ?? '') as String,
@@ -157,6 +177,16 @@ class TaskItem {
           .map((e) => e.toString())
           .toList(),
       canVerifyCompletion: (j['canVerifyCompletion'] ?? false) as bool,
+      createdAt: j['createdAt'] == null
+          ? DateTime.parse(j['dueDate'] as String).subtract(const Duration(days: 1))
+          : DateTime.parse(j['createdAt'] as String),
+      groupId: j['groupId'] as String?,
+      divisionId: j['divisionId'] as String?,
+      objectiveId: oid,
+      objectiveTitle: otitle,
+      dependencyIds: ((j['dependencyIds'] as List?) ?? const [])
+          .map((e) => e.toString())
+          .toList(),
     );
   }
 }
