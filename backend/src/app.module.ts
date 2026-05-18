@@ -8,6 +8,7 @@ import { UsersModule } from './modules/users/users.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { MeetingsModule } from './modules/meetings/meetings.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { UploadsModule } from './modules/uploads/uploads.module';
 import { WechatModule } from './modules/wechat/wechat.module';
 import { ApprovalsModule } from './modules/approvals/approvals.module';
 import { ObjectivesModule } from './modules/objectives/objectives.module';
@@ -41,6 +42,7 @@ import { AttendanceModule } from './modules/attendance/attendance.module';
     TasksModule,
     MeetingsModule,
     NotificationsModule,
+    UploadsModule,
     WechatModule,
     ApprovalsModule,
     ObjectivesModule,
