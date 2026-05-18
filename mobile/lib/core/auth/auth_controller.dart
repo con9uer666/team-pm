@@ -117,6 +117,18 @@ class AuthController extends Notifier<AuthState> {
     state = state.copyWith(adminMode: v);
   }
 
+  /// Re-fetch the current user from the server and update [state.user].
+  /// Used after side-effects that change profile data (e.g. WeChat bind callback).
+  Future<void> refreshUser() async {
+    if (!state.ready || state.user == null) return;
+    try {
+      final user = await _api.me();
+      state = state.copyWith(user: user);
+    } on Object catch (_) {
+      // Silent — caller can retry; the screen will still poll on its own.
+    }
+  }
+
   /// Called when a 401 response invalidates our session.
   void forceLoggedOut() {
     state = state.copyWith(clearUser: true);

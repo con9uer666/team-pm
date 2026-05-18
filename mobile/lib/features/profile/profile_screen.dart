@@ -6,6 +6,7 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/config.dart';
 import '../../core/models/role.dart';
 import '../../shared/widgets/fade_in.dart';
+import '../wechat/widgets/wechat_bind_sheet.dart';
 
 String _avatarInitial(String? name) {
   final trimmed = (name ?? '').trim();
@@ -109,6 +110,45 @@ class ProfileScreen extends ConsumerWidget {
                     subtitle: const Text('查看 / 签到 / 纪要'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => context.push('/meetings'),
+                  ),
+                  const Divider(height: 0),
+                  ListTile(
+                    leading: const Icon(Icons.handshake_outlined,
+                        color: Color(0xFF14B8A6)),
+                    title: const Text('协作中心'),
+                    subtitle: const Text('会议 / 讨论 / 知识库 / 赛程'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.push('/collaborate'),
+                  ),
+                  const Divider(height: 0),
+                  ListTile(
+                    leading: const Icon(Icons.notifications_active_outlined,
+                        color: Color(0xFF10B981)),
+                    title: const Text('微信通知'),
+                    subtitle: Text(
+                      (user?.wechatWorkId != null &&
+                              user!.wechatWorkId!.isNotEmpty)
+                          ? '已绑定，将通过企业微信推送'
+                          : '未绑定，点此扫码开启推送',
+                    ),
+                    trailing: (user?.wechatWorkId != null &&
+                            user!.wechatWorkId!.isNotEmpty)
+                        ? const Icon(Icons.check_circle,
+                            color: Color(0xFF10B981))
+                        : const Icon(Icons.chevron_right),
+                    onTap: () {
+                      showModalBottomSheet<void>(
+                        context: context,
+                        isScrollControlled: true,
+                        useSafeArea: true,
+                        backgroundColor: Colors.white,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.vertical(top: Radius.circular(18)),
+                        ),
+                        builder: (_) => const WechatBindSheet(),
+                      );
+                    },
                   ),
                 ],
               ),

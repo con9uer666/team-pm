@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/admin/dashboard/admin_dashboard_screen.dart';
+import '../../features/admin/fences/admin_fences_screen.dart';
+import '../../features/admin/org/admin_org_screen.dart';
+import '../../features/admin/users/admin_users_screen.dart';
 import '../../features/attendance/attendance_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
+import '../../features/collaborate/collaborate_screen.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/meetings/meetings_screen.dart';
 import '../../features/notifications/notifications_screen.dart';
@@ -159,6 +164,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             name: 'meetings',
             builder: (_, _) => const MeetingsScreen(),
           ),
+          GoRoute(
+            path: '/collaborate',
+            name: 'collaborate',
+            builder: (_, _) => const CollaborateScreen(),
+          ),
         ],
       ),
       ShellRoute(
@@ -168,43 +178,43 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/admin',
             name: 'admin-dashboard',
             pageBuilder: (_, _) => const NoTransitionPage(
-                child: AdminPlaceholderScreen(title: '管理概览')),
+                child: AdminDashboardScreen()),
           ),
           GoRoute(
             path: '/admin/users',
             name: 'admin-users',
-            pageBuilder: (_, _) => const NoTransitionPage(
-                child: AdminPlaceholderScreen(title: '用户管理')),
+            pageBuilder: (_, _) =>
+                const NoTransitionPage(child: AdminUsersScreen()),
           ),
           GoRoute(
             path: '/admin/org',
             name: 'admin-org',
-            pageBuilder: (_, _) => const NoTransitionPage(
-                child: AdminPlaceholderScreen(title: '组织管理')),
+            pageBuilder: (_, _) =>
+                const NoTransitionPage(child: AdminOrgScreen()),
           ),
           GoRoute(
             path: '/admin/tasks',
             name: 'admin-tasks',
             pageBuilder: (_, _) => const NoTransitionPage(
-                child: AdminPlaceholderScreen(title: '任务管理')),
+                child: AdminPlaceholderScreen(title: '任务管理（建设中）')),
           ),
           GoRoute(
             path: '/admin/meetings',
             name: 'admin-meetings',
             pageBuilder: (_, _) => const NoTransitionPage(
-                child: AdminPlaceholderScreen(title: '会议管理')),
+                child: AdminPlaceholderScreen(title: '会议管理（建设中）')),
           ),
           GoRoute(
             path: '/admin/objectives',
             name: 'admin-objectives',
             pageBuilder: (_, _) => const NoTransitionPage(
-                child: AdminPlaceholderScreen(title: '目标管理')),
+                child: AdminPlaceholderScreen(title: '目标管理（建设中）')),
           ),
           GoRoute(
             path: '/admin/fences',
             name: 'admin-fences',
-            pageBuilder: (_, _) => const NoTransitionPage(
-                child: AdminPlaceholderScreen(title: '围栏管理')),
+            pageBuilder: (_, _) =>
+                const NoTransitionPage(child: AdminFencesScreen()),
           ),
         ],
       ),

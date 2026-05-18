@@ -172,6 +172,51 @@ class AttendanceApi {
     final data = await _client.get<List<dynamic>>('/attendance/fences');
     return data.map((e) => AttendanceFence.fromJson(e as Map<String, dynamic>)).toList();
   }
+
+  Future<AttendanceFence> createFence({
+    required String name,
+    required double centerLat,
+    required double centerLng,
+    required double radius,
+    bool enabled = true,
+  }) async {
+    final data = await _client.post<Map<String, dynamic>>(
+      '/attendance/fences',
+      body: {
+        'name': name,
+        'centerLat': centerLat,
+        'centerLng': centerLng,
+        'radius': radius,
+        'enabled': enabled,
+      },
+    );
+    return AttendanceFence.fromJson(data);
+  }
+
+  Future<AttendanceFence> updateFence({
+    required String id,
+    String? name,
+    double? centerLat,
+    double? centerLng,
+    double? radius,
+    bool? enabled,
+  }) async {
+    final body = <String, dynamic>{};
+    if (name != null) body['name'] = name;
+    if (centerLat != null) body['centerLat'] = centerLat;
+    if (centerLng != null) body['centerLng'] = centerLng;
+    if (radius != null) body['radius'] = radius;
+    if (enabled != null) body['enabled'] = enabled;
+    final data = await _client.patch<Map<String, dynamic>>(
+      '/attendance/fences/$id',
+      body: body,
+    );
+    return AttendanceFence.fromJson(data);
+  }
+
+  Future<void> removeFence(String id) async {
+    await _client.delete<dynamic>('/attendance/fences/$id');
+  }
 }
 
 final attendanceApiProvider = Provider<AttendanceApi>((ref) {

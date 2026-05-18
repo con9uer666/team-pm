@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/fade_in.dart';
-import '../../shared/widgets/press_scale.dart';
+import '../../shared/widgets/gradient_stat_tile.dart';
 import '../attendance/data/attendance_api.dart';
 import '../meetings/data/meetings_api.dart';
 import '../tasks/data/task_models.dart';
@@ -213,28 +213,28 @@ class _StatsGrid extends StatelessWidget {
       crossAxisSpacing: 12,
       childAspectRatio: 1.6,
       children: [
-        _StatTile(
+        GradientStatTile(
           gradient: AppTheme.gradBlue,
           icon: Icons.pending_actions_rounded,
           label: '待处理任务',
           value: stats.pending,
           onTap: () => context.go('/tasks?status=pending'),
         ),
-        _StatTile(
+        GradientStatTile(
           gradient: AppTheme.gradGreen,
           icon: Icons.check_circle_rounded,
           label: '已完成任务',
           value: stats.completed,
           onTap: () => context.go('/tasks?status=completed'),
         ),
-        _StatTile(
+        GradientStatTile(
           gradient: AppTheme.gradCyan,
           icon: Icons.event_available_rounded,
           label: '即将开始会议',
           value: stats.upcomingMeetings,
           onTap: () => context.push('/meetings'),
         ),
-        _StatTile(
+        GradientStatTile(
           gradient: AppTheme.gradOrange,
           icon: Icons.warning_amber_rounded,
           label: '逾期任务',
@@ -242,83 +242,6 @@ class _StatsGrid extends StatelessWidget {
           onTap: () => context.go('/tasks?status=overdue'),
         ),
       ],
-    );
-  }
-}
-
-class _StatTile extends StatelessWidget {
-  const _StatTile({
-    required this.gradient,
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.onTap,
-  });
-
-  final LinearGradient gradient;
-  final IconData icon;
-  final String label;
-  final int value;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return PressScale(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: gradient,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.22),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icon, color: Colors.white, size: 22),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Tween from 0 to current value on first build, then from
-                      // previous to new on refresh — gives a satisfying roll.
-                      TweenAnimationBuilder<int>(
-                        tween: IntTween(begin: 0, end: value),
-                        duration: const Duration(milliseconds: 600),
-                        curve: Curves.easeOutCubic,
-                        builder: (_, v, _) => Text(
-                          '$v',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        label,
-                        style: const TextStyle(color: Color(0xCCFFFFFF), fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
