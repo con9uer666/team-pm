@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/role.dart';
 import '../../core/network/dio_client.dart';
 import '../../core/org/users_api.dart';
+import '../../core/theme/app_theme.dart';
 
 class TeamStructureScreen extends ConsumerWidget {
   const TeamStructureScreen({super.key});
@@ -28,7 +29,7 @@ class TeamStructureScreen extends ConsumerWidget {
                 child: Padding(
                   padding: const EdgeInsets.all(20),
                   child: Text(dioErrorMessage(e, '加载失败'),
-                      style: const TextStyle(color: Color(0xFFB91C1C))),
+                      style: TextStyle(color: AppTheme.dangerFg)),
                 ),
               ),
             ],
@@ -172,10 +173,14 @@ class _ExpandableBranchState extends State<_ExpandableBranch> {
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Row(
               children: [
-                Icon(
-                  _expanded ? Icons.expand_more : Icons.chevron_right,
-                  size: 18,
-                  color: const Color(0xFF94A3B8),
+                AnimatedRotation(
+                  turns: _expanded ? 0.25 : 0.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: const Icon(
+                    Icons.chevron_right,
+                    size: 18,
+                    color: Color(0xFF94A3B8),
+                  ),
                 ),
                 const SizedBox(width: 4),
                 Text(widget.name,
@@ -195,48 +200,54 @@ class _ExpandableBranchState extends State<_ExpandableBranch> {
             ),
           ),
         ),
-        if (_expanded)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 0, 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (leaderNames.isNotEmpty) ...[
-                  const Text('组长',
-                      style: TextStyle(
-                          fontSize: 12, color: Color(0xFF64748B))),
-                  const SizedBox(height: 4),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          alignment: Alignment.topCenter,
+          child: !_expanded
+              ? const SizedBox.shrink()
+              : Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 0, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      for (final n in leaderNames)
-                        _PersonChip(name: n, isLeader: true),
+                      if (leaderNames.isNotEmpty) ...[
+                        const Text('组长',
+                            style: TextStyle(
+                                fontSize: 12, color: Color(0xFF64748B))),
+                        const SizedBox(height: 4),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            for (final n in leaderNames)
+                              _PersonChip(name: n, isLeader: true),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      const Text('组员',
+                          style:
+                              TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                      const SizedBox(height: 4),
+                      widget.members.isEmpty
+                          ? const _Empty(text: '暂无组员')
+                          : Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: [
+                                for (final m in widget.members)
+                                  _PersonChip(
+                                    name: m.realName.isEmpty
+                                        ? m.username
+                                        : m.realName,
+                                  ),
+                              ],
+                            ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                ],
-                const Text('组员',
-                    style:
-                        TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                const SizedBox(height: 4),
-                widget.members.isEmpty
-                    ? const _Empty(text: '暂无组员')
-                    : Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: [
-                          for (final m in widget.members)
-                            _PersonChip(
-                              name: m.realName.isEmpty
-                                  ? m.username
-                                  : m.realName,
-                            ),
-                        ],
-                      ),
-              ],
-            ),
-          ),
+                ),
+        ),
         const Divider(height: 1, color: Color(0xFFE2E8F0)),
       ],
     );

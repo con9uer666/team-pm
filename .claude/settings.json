@@ -175,7 +175,9 @@
       "Bash(awk '/<van-popup/,/<\\\\/van-popup>/' /Users/mix/team-pm/frontend/src/views/Tasks.vue)",
       "Bash(awk '/<van-popup v-model:show=\"showCreate\"/,/<\\\\/van-popup>/' /Users/mix/team-pm/frontend/src/views/Tasks.vue)",
       "Bash(flutter clean *)",
-      "Bash(xargs ls -la)"
+      "Bash(xargs ls -la)",
+      "Bash(grep -n 'showSnackBar\\\\|SnackBar\\\\|dioErrorMessage\\\\|\\\\$e' mobile/lib/features/tasks/widgets/task_complete_sheet.dart)",
+      "Bash(grep -n \"t.status\\\\|\\\\\\\\\\\\${t.status}\" frontend/src/views/SpaceDetail.vue)"
     ],
     "additionalDirectories": [
       "\\tmp",

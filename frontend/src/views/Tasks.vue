@@ -6,6 +6,7 @@ import { tasksApi, type Task, type TaskWithMeta, type TaskReviewInfo, type Creat
 import { usersApi, orgApi, type UserInfo, type GroupInfo, type DivisionInfo } from '../api/users'
 import { objectivesApi, type Objective } from '../api/objectives'
 import { useAuthStore } from '../stores/auth'
+import { taskStatusConfig } from '../utils/status'
 import TaskCard from '../components/TaskCard.vue'
 import FileUploader from '../components/FileUploader.vue'
 
@@ -31,6 +32,7 @@ const showCompleteDialog = ref(false)
 const completeTarget = ref<string>('')
 const completeAttachments = ref<string[]>([])
 const completeNote = ref('')
+const submittingComplete = ref(false)
 
 const showVerifyDialog = ref(false)
 const verifyTarget = ref<string>('')
@@ -50,15 +52,7 @@ const statusFilters = [
   { value: 'overdue', text: '已逾期' },
 ]
 
-const statusConfig: Record<string, { text: string; color: string; border: string }> = {
-  pending_review: { text: '待审核', color: '#d97706', border: '#f59e0b' },
-  approved: { text: '进行中', color: '#2563eb', border: '#3b82f6' },
-  rejected: { text: '已驳回', color: '#dc2626', border: '#ef4444' },
-  pending_completion: { text: '待结案', color: '#7c3aed', border: '#8b5cf6' },
-  completed: { text: '已完成', color: '#16a34a', border: '#22c55e' },
-  overdue: { text: '已逾期', color: '#dc2626', border: '#ef4444' },
-  blocked: { text: '阻塞中', color: '#6b7280', border: '#9ca3af' },
-}
+const statusConfig = taskStatusConfig
 
 const filteredTasks = computed(() => {
   const scope = activeTab.value === 0 ? 'own' : 'team'
@@ -254,10 +248,12 @@ async function handleComplete(id: string) {
 }
 
 async function submitComplete() {
+  if (submittingComplete.value) return
   if (!completeAttachments.value.length) {
     showToast({ message: '请上传至少一个附件', type: 'fail' })
     return
   }
+  submittingComplete.value = true
   try {
     await tasksApi.complete(completeTarget.value, {
       attachments: completeAttachments.value,
@@ -268,6 +264,8 @@ async function submitComplete() {
     await loadData()
   } catch (e: any) {
     showToast({ message: e.message || '操作失败', type: 'fail' })
+  } finally {
+    submittingComplete.value = false
   }
 }
 
@@ -546,9 +544,23 @@ function ganttBarStyle(task: TaskWithMeta) {
 }
 
 onMounted(async () => {
+  // Apply ?status=… from home stat cards before first load so the list opens
+  // already filtered. We accept the canonical task status values and the alias
+  // "pending" -> "pending_review".
+  const rawStatus = typeof route.query.status === 'string' ? route.query.status : null
+  if (rawStatus) {
+    const normalized = rawStatus === 'pending' ? 'pending_review' : rawStatus
+    if (statusFilters.some(f => f.value && f.value === normalized)) {
+      statusFilter.value = normalized
+    }
+  }
+
   const prefillId = typeof route.query.prefillObjective === 'string' ? route.query.prefillObjective : null
   if (prefillId) {
     showCreate.value = true
+    router.replace({ query: {} })
+  } else if (rawStatus) {
+    // Clear so leaving + coming back doesn't auto-reapply
     router.replace({ query: {} })
   }
   await loadData()
@@ -704,7 +716,7 @@ onMounted(async () => {
 
     <!-- 提交结案弹窗 -->
     <van-popup v-model:show="showCompleteDialog" position="bottom" round style="max-height: 70vh;">
-      <van-nav-bar title="提交结案" left-text="取消" right-text="提交" @click-left="showCompleteDialog = false" @click-right="submitComplete" />
+      <van-nav-bar title="提交结案" left-text="取消" :right-text="submittingComplete ? '提交中…' : '提交'" @click-left="showCompleteDialog = false" @click-right="submitComplete" />
       <div style="padding: 16px;">
         <p style="font-size: 13px; color: #666; margin: 0 0 12px;">请上传结案证明（图片/视频），至少1个</p>
         <FileUploader v-model="completeAttachments" :max-count="9" />

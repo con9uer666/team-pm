@@ -36,7 +36,7 @@ class _TaskCompleteSheetState extends ConsumerState<TaskCompleteSheet> {
     } on Object catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('选择图片失败：$e')),
+        SnackBar(content: Text(dioErrorMessage(e, '选择图片失败'))),
       );
     }
   }

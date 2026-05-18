@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/network/dio_client.dart';
 import '../../core/org/users_api.dart';
+import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/status_chip.dart';
 import 'data/meetings_api.dart';
 import 'widgets/meeting_create_sheet.dart';
@@ -41,7 +42,7 @@ class MeetingsScreen extends ConsumerWidget {
                 child: Padding(
                   padding: const EdgeInsets.all(20),
                   child: Text(dioErrorMessage(e, '加载失败'),
-                      style: const TextStyle(color: Color(0xFFB91C1C))),
+                      style: TextStyle(color: AppTheme.dangerFg)),
                 ),
               ),
             ],

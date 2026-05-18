@@ -29,6 +29,9 @@ async function refresh() {
   await load()
   if (status.value?.approvalStatus === 'pending') {
     showToast('仍在审核中')
+  } else {
+    // approved/rejected — 已经在 load() 里更新了 status.value，让用户看到结果。
+    showToast('已刷新')
   }
 }
 

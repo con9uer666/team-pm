@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { showFailToast } from 'vant'
 import { useAuthStore } from '../stores/auth'
 import { tasksApi } from '../api/tasks'
 import { meetingsApi } from '../api/meetings'
@@ -28,7 +29,9 @@ async function loadStats() {
     stats.value.overdueTasks = tasks.filter(t => t.status === 'overdue').length
     stats.value.completedTasks = tasks.filter(t => t.status === 'completed').length
     stats.value.upcomingMeetings = meetings.filter(m => m.status === 'scheduled').length
-  } catch {}
+  } catch (e: any) {
+    showFailToast(e?.message || '加载首页数据失败，请下拉刷新')
+  }
   loaded.value = true
 }
 
@@ -62,14 +65,14 @@ onMounted(loadStats)
 
     <!-- Stat Cards -->
     <div class="stat-cards">
-      <div class="card-gradient animate-fade-in-up stagger-1" style="background: var(--gradient-blue);" @click="router.push('/tasks')">
+      <div class="card-gradient animate-fade-in-up stagger-1" style="background: var(--gradient-blue);" @click="router.push({ path: '/tasks', query: { status: 'pending_review' }})">
         <div class="stat-number">{{ stats.pendingTasks }}</div>
         <div class="stat-label">待完成任务</div>
         <div class="stat-icon">
           <van-icon name="todo-list-o" size="32" color="rgba(255,255,255,0.3)" />
         </div>
       </div>
-      <div class="card-gradient animate-fade-in-up stagger-2" style="background: var(--gradient-green);" @click="router.push('/tasks')">
+      <div class="card-gradient animate-fade-in-up stagger-2" style="background: var(--gradient-green);" @click="router.push({ path: '/tasks', query: { status: 'completed' }})">
         <div class="stat-number">{{ stats.completedTasks }}</div>
         <div class="stat-label">已完成任务</div>
         <div class="stat-icon">
@@ -83,7 +86,7 @@ onMounted(loadStats)
           <van-icon name="clock-o" size="32" color="rgba(255,255,255,0.3)" />
         </div>
       </div>
-      <div class="card-gradient animate-fade-in-up stagger-4" style="background: var(--gradient-orange);">
+      <div class="card-gradient animate-fade-in-up stagger-4" style="background: var(--gradient-orange);" @click="router.push({ path: '/tasks', query: { status: 'overdue' }})">
         <div class="stat-number">{{ stats.overdueTasks }}</div>
         <div class="stat-label">逾期任务</div>
         <div class="stat-icon">

@@ -71,7 +71,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       final nearest = _nearestFenceHit(data.fences, pos.lat, pos.lng);
       final msg = nearest != null
           ? '签到成功（${nearest.name}）'
-          : '签到成功（未匹配到围栏）';
+          : '签到成功（位置已记录，未在已知围栏内）';
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       await _refresh();
     } on Object catch (e) {
@@ -144,8 +144,19 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                   ? bundleAsync.when(
                       loading: () => const Center(child: CircularProgressIndicator()),
                       error: (err, _) => Center(
-                        child: Text(dioErrorMessage(err, '加载失败'),
-                            style: const TextStyle(color: Color(0xFF64748B))),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(dioErrorMessage(err, '加载失败'),
+                                style: const TextStyle(color: Color(0xFF64748B))),
+                            const SizedBox(height: 12),
+                            OutlinedButton.icon(
+                              onPressed: _refresh,
+                              icon: const Icon(Icons.refresh, size: 16),
+                              label: const Text('重试'),
+                            ),
+                          ],
+                        ),
                       ),
                       data: (data) => RefreshIndicator(
                         onRefresh: _refresh,
@@ -515,8 +526,19 @@ class _RankView extends ConsumerWidget {
     return rank.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (err, _) => Center(
-        child: Text(dioErrorMessage(err, '加载失败'),
-            style: const TextStyle(color: Color(0xFF64748B))),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(dioErrorMessage(err, '加载失败'),
+                style: const TextStyle(color: Color(0xFF64748B))),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: onRefresh,
+              icon: const Icon(Icons.refresh, size: 16),
+              label: const Text('重试'),
+            ),
+          ],
+        ),
       ),
       data: (rows) {
         final sorted = [...rows]

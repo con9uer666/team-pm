@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/auth/auth_controller.dart';
 import '../../core/network/dio_client.dart';
@@ -48,6 +49,27 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   _TaskScope _scope = _TaskScope.own;
   _ViewMode _viewMode = _ViewMode.list;
   String _statusFilter = '';
+  bool _queryApplied = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Apply ?status=… from the URL once when the screen first opens (e.g. when
+    // tapped from the home stat cards). Subsequent visits without a query keep
+    // whatever the user picked manually.
+    if (_queryApplied) return;
+    final q = GoRouterState.of(context).uri.queryParameters['status'];
+    if (q == null || q.isEmpty) {
+      _queryApplied = true;
+      return;
+    }
+    // Map shorthand aliases (e.g. ?status=pending → pending_review).
+    final normalized = q == 'pending' ? 'pending_review' : q;
+    final hit = _statusFilters
+        .any((o) => o.value.isNotEmpty && o.value == normalized);
+    if (hit) _statusFilter = normalized;
+    _queryApplied = true;
+  }
 
   Future<void> _refresh() async {
     ref.invalidate(_tasksProvider);

@@ -8,6 +8,7 @@ import { objectivesApi, type Objective } from '../api/objectives'
 import { orgApi, type GroupInfo, type DivisionInfo } from '../api/users'
 import type { Task } from '../api/tasks'
 import { roleLabel } from '../composables/useRoleLabel'
+import { taskStatusLabel } from '../utils/status'
 
 const route = useRoute()
 const router = useRouter()
@@ -110,6 +111,7 @@ function openCreate() {
 }
 
 async function submitCreate() {
+  if (creating.value) return
   if (!newTitle.value.trim()) return showFailToast('请填写目标标题')
   if (!newDue.value) return showFailToast('请选择截止日期')
   creating.value = true
@@ -247,7 +249,7 @@ onMounted(load)
                 v-for="t in objTasksMap[o.id] || []"
                 :key="t.id"
                 :title="t.title"
-                :label="`${t.status} · 截止 ${fmtDate(t.dueDate)}`"
+                :label="`${taskStatusLabel(t.status)} · 截止 ${fmtDate(t.dueDate)}`"
               />
             </div>
           </div>
@@ -299,7 +301,7 @@ onMounted(load)
             v-for="t in detail.tasks"
             :key="t.id"
             :title="t.title"
-            :label="`${t.status} · 截止 ${fmtDate(t.dueDate)}`"
+            :label="`${taskStatusLabel(t.status)} · 截止 ${fmtDate(t.dueDate)}`"
           />
         </div>
       </van-tab>
@@ -333,7 +335,7 @@ onMounted(load)
           />
         </van-cell-group>
         <div class="create-actions">
-          <van-button block type="primary" :loading="creating" @click="submitCreate">
+          <van-button block type="primary" :loading="creating" :disabled="creating" @click="submitCreate">
             确认下达
           </van-button>
         </div>

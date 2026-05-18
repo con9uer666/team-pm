@@ -73,5 +73,5 @@ onMounted(loadData)
 </template>
 
 <style scoped>
-.unread { background-color: #f0f7ff; }
+.unread { background-color: var(--unread-bg, #f0f7ff); }
 </style>

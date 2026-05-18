@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
+import '../../../core/theme/app_theme.dart';
 import '../data/meetings_api.dart';
 
 class MeetingMinutesSheet extends ConsumerStatefulWidget {
@@ -128,8 +129,8 @@ class _MeetingMinutesSheetState extends ConsumerState<MeetingMinutesSheet> {
                       : _error != null
                           ? Center(
                               child: Text(_error!,
-                                  style: const TextStyle(
-                                      color: Color(0xFFB91C1C))))
+                                  style: TextStyle(
+                                      color: AppTheme.dangerFg)))
                           : widget.canEdit
                               ? TextField(
                                   controller: _ctrl,

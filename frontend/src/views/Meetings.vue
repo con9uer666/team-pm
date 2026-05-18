@@ -82,7 +82,10 @@ async function openDetail(meeting: MeetingInfo) {
   currentMeeting.value = meeting
   try {
     participants.value = await meetingsApi.getParticipants(meeting.id)
-  } catch { participants.value = [] }
+  } catch (e: any) {
+    participants.value = []
+    showFailToast(e?.message || '获取参与者失败')
+  }
   showDetail.value = true
 }
 

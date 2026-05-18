@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -355,7 +356,11 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                           ),
                         ),
                     ],
-                    _DependenciesSection(deps: _deps, error: _depsError),
+                    _DependenciesSection(
+                      deps: _deps,
+                      error: _depsError,
+                      onRetry: _loadDeps,
+                    ),
                   ],
                 ),
               ),
@@ -488,8 +493,32 @@ class _AttachmentThumb extends StatelessWidget {
 
   void _preview(BuildContext context) {
     if (_isVideo) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('视频预览暂未支持，链接：$url')),
+      showModalBottomSheet<void>(
+        context: context,
+        builder: (ctx) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.link),
+                title: const Text('复制视频链接'),
+                onTap: () async {
+                  await Clipboard.setData(ClipboardData(text: url));
+                  if (!ctx.mounted) return;
+                  Navigator.of(ctx).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('链接已复制，可粘贴到浏览器打开')),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.close),
+                title: const Text('取消'),
+                onTap: () => Navigator.of(ctx).pop(),
+              ),
+            ],
+          ),
+        ),
       );
       return;
     }
@@ -718,16 +747,38 @@ class _ObjectiveSection extends StatelessWidget {
 }
 
 class _DependenciesSection extends StatelessWidget {
-  const _DependenciesSection({required this.deps, required this.error});
+  const _DependenciesSection({
+    required this.deps,
+    required this.error,
+    required this.onRetry,
+  });
   final List<TaskItem>? deps;
   final String? error;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
     if (error != null) {
       return Padding(
         padding: const EdgeInsets.only(top: 14),
-        child: Text(error!, style: const TextStyle(fontSize: 12, color: Color(0xFFEF4444))),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(error!,
+                  style: const TextStyle(
+                      fontSize: 12, color: Color(0xFFEF4444))),
+            ),
+            TextButton(
+              onPressed: onRetry,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                minimumSize: const Size(0, 0),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text('重试', style: TextStyle(fontSize: 12)),
+            ),
+          ],
+        ),
       );
     }
     if (deps == null || deps!.isEmpty) {

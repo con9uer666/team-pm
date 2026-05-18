@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/auth/auth_controller.dart';
+import '../../core/config.dart';
 import '../../core/models/role.dart';
 
 String _avatarInitial(String? name) {
@@ -10,6 +11,17 @@ String _avatarInitial(String? name) {
   if (trimmed.isEmpty) return 'U';
   // Use `characters.first` to handle surrogate pairs (emoji, CJK extension) safely.
   return trimmed.characters.first;
+}
+
+/// Returns just the host:port part of the API base, hiding scheme and `/api`
+/// path for a cleaner display in the "About" tile.
+String _apiHost() {
+  final base = AppConfig.apiBase;
+  // strip scheme
+  final noScheme = base.replaceFirst(RegExp(r'^https?://'), '');
+  // strip path
+  final slash = noScheme.indexOf('/');
+  return slash < 0 ? noScheme : noScheme.substring(0, slash);
 }
 
 class ProfileScreen extends ConsumerWidget {
@@ -119,7 +131,7 @@ class ProfileScreen extends ConsumerWidget {
                   ListTile(
                     leading: const Icon(Icons.info_outline),
                     title: const Text('关于'),
-                    subtitle: Text('API: ${const String.fromEnvironment('API_BASE', defaultValue: 'http://49.233.180.22:8080/api')}'),
+                    subtitle: Text('服务: ${_apiHost()}'),
                   ),
                   const Divider(height: 0),
                   ListTile(

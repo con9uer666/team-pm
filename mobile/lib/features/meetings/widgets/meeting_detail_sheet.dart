@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/auth/auth_controller.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/org/users_api.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/status_chip.dart';
 import '../data/meetings_api.dart';
 import 'meeting_minutes_sheet.dart';
@@ -71,7 +72,7 @@ class _MeetingDetailSheetState extends ConsumerState<MeetingDetailSheet> {
                 child: Padding(
                   padding: const EdgeInsets.all(20),
                   child: Text(dioErrorMessage(snap.error!, '加载失败'),
-                      style: const TextStyle(color: Color(0xFFB91C1C))),
+                      style: TextStyle(color: AppTheme.dangerFg)),
                 ),
               );
             }

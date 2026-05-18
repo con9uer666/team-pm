@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/auth/auth_controller.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/org/users_api.dart';
+import '../../../core/theme/app_theme.dart';
 import '../data/meetings_api.dart';
 
 class _Target {
@@ -191,7 +192,7 @@ class _MeetingCreateSheetState extends ConsumerState<MeetingCreateSheet> {
                           child: const Text(
                             '你不是任何兵种或技术组的 leader，且没有发起全队会议权限',
                             style: TextStyle(
-                                color: Color(0xFFB91C1C), fontSize: 13),
+                                color: AppTheme.dangerFg, fontSize: 13),
                           ),
                         )
                       else

@@ -22,6 +22,8 @@ const showBind = ref(false)
 const qrcodeUrl = ref('')
 const loadingQr = ref(false)
 let pollTimer: number | null = null
+let pollStartedAt = 0
+const POLL_TIMEOUT_MS = 5 * 60 * 1000 // 5 分钟硬超时
 
 const bound = computed(() => !!auth.user?.wechatWorkId)
 
@@ -49,7 +51,15 @@ async function handleBindClick() {
 
 function startPolling() {
   stopPolling()
+  pollStartedAt = Date.now()
   pollTimer = window.setInterval(async () => {
+    // 5 分钟没绑定上自动停止避免无限轮询
+    if (Date.now() - pollStartedAt > POLL_TIMEOUT_MS) {
+      stopPolling()
+      showBind.value = false
+      showToast({ message: '二维码已过期，请重新生成', type: 'fail', duration: 3000 })
+      return
+    }
     try {
       const me = await usersApi.getMe()
       if (me.wechatWorkId) {
@@ -103,7 +113,7 @@ async function handleLogout() {
     <van-cell-group inset class="animate-fade-in-up stagger-2" style="margin-top: 12px;">
       <van-cell title="微信通知">
         <template #value>
-          <span v-if="bound" style="color: #52c41a;">已绑定</span>
+          <span v-if="bound" style="color: var(--accent-green, #52c41a);">已绑定</span>
           <van-button v-else size="mini" type="primary" @click="handleBindClick">绑定</van-button>
         </template>
       </van-cell>

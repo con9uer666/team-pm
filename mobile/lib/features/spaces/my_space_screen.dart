@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/network/dio_client.dart';
 import '../../core/org/users_api.dart';
+import '../../core/theme/app_theme.dart';
 import 'data/spaces_api.dart';
 
 enum _SpaceTab { mine, all }
@@ -81,7 +82,7 @@ class _MineSection extends StatelessWidget {
       error: (e, _) => Padding(
         padding: const EdgeInsets.all(20),
         child: Text(dioErrorMessage(e, '加载失败'),
-            style: const TextStyle(color: Color(0xFFB91C1C))),
+            style: TextStyle(color: AppTheme.dangerFg)),
       ),
       data: (my) {
         if (my.groups.isEmpty && my.divisions.isEmpty) {
@@ -131,7 +132,7 @@ class _AllSection extends StatelessWidget {
       error: (e, _) => Padding(
         padding: const EdgeInsets.all(20),
         child: Text(dioErrorMessage(e, '加载失败'),
-            style: const TextStyle(color: Color(0xFFB91C1C))),
+            style: TextStyle(color: AppTheme.dangerFg)),
       ),
       data: (org) {
         final divCards = [

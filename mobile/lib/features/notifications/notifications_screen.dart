@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/network/dio_client.dart';
+import '../../core/theme/app_theme.dart';
 import 'data/notifications_api.dart';
 
 class NotificationsScreen extends ConsumerWidget {
@@ -53,7 +54,7 @@ class NotificationsScreen extends ConsumerWidget {
                 child: Padding(
                   padding: const EdgeInsets.all(20),
                   child: Text(dioErrorMessage(e, '加载失败'),
-                      style: const TextStyle(color: Color(0xFFB91C1C))),
+                      style: TextStyle(color: AppTheme.dangerFg)),
                 ),
               ),
             ],

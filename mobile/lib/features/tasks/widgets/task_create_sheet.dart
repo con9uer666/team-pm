@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/auth/auth_controller.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/org/users_api.dart';
+import '../../../core/theme/app_theme.dart';
 import '../data/task_models.dart';
 import '../data/tasks_api.dart';
 import 'objective_picker_sheet.dart';
@@ -134,6 +135,8 @@ class _TaskCreateSheetState extends ConsumerState<TaskCreateSheet> {
   }
 
   Future<void> _submit(OrgStructure org) async {
+    if (_busy) return;
+    // 统一校验：表单字段 + 各 Dropdown / 日期。失败立即提示第一个问题。
     if (!_form.currentState!.validate()) return;
     if (_dueDate == null) {
       _snack('请选择结案日期');
@@ -149,8 +152,12 @@ class _TaskCreateSheetState extends ConsumerState<TaskCreateSheet> {
         return;
       }
     }
-    if (_divisionId == null || _groupId == null) {
-      _snack('请选择兵种和技术组');
+    if (_divisionId == null) {
+      _snack(_assignMode ? '请选择被指派人所属兵种' : '请选择兵种');
+      return;
+    }
+    if (_groupId == null) {
+      _snack(_assignMode ? '请选择被指派人所属技术组' : '请选择技术组');
       return;
     }
     if (_requirements.text.trim().isEmpty) {
@@ -272,7 +279,7 @@ class _TaskCreateSheetState extends ConsumerState<TaskCreateSheet> {
                     child: Padding(
                       padding: const EdgeInsets.all(20),
                       child: Text(dioErrorMessage(e, '加载组织结构失败'),
-                          style: const TextStyle(color: Color(0xFFB91C1C))),
+                          style: const TextStyle(color: AppTheme.dangerFg)),
                     ),
                   ),
                   data: (org) =>

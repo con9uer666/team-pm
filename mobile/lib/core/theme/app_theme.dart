@@ -12,6 +12,13 @@ class AppTheme {
   static const Color warning = Color(0xFFF59E0B);
   static const Color success = Color(0xFF10B981);
 
+  /// Deeper red for error text/icons; pair with [dangerBg] for inline alerts.
+  static const Color dangerFg = Color(0xFFB91C1C);
+  static const Color dangerBg = Color(0xFFFEE2E2);
+
+  /// Card radius — match CardTheme so ad-hoc Containers stay consistent.
+  static const double cardRadius = 12.0;
+
   static const Color bg = Color(0xFFF4F6FB);
   static const Color surface = Colors.white;
   static const Color sidebarBg = Color(0xFF0F172A);

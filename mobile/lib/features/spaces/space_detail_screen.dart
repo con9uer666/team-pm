@@ -5,6 +5,7 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/models/role.dart';
 import '../../core/network/dio_client.dart';
 import '../../core/org/users_api.dart';
+import '../../core/theme/app_theme.dart';
 import '../objectives/data/objectives_api.dart';
 import '../objectives/data/objective_models.dart';
 import '../tasks/data/task_models.dart';
@@ -165,7 +166,7 @@ class _SpaceDetailScreenState extends ConsumerState<SpaceDetailScreen> {
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Text(dioErrorMessage(e, '加载失败'),
-                style: const TextStyle(color: Color(0xFFB91C1C))),
+                style: TextStyle(color: AppTheme.dangerFg)),
           ),
         ),
         data: (detail) => DefaultTabController(
@@ -413,49 +414,49 @@ class _ObjectiveCard extends ConsumerWidget {
                           fontSize: 12, color: Color(0xFF64748B))),
                 ],
               ),
-              const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  if (!completed)
-                    OutlinedButton(
-                      onPressed: () => _newTask(context, ref),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        textStyle: const TextStyle(fontSize: 12),
-                        foregroundColor: const Color(0xFF1D4ED8),
-                      ),
-                      child: const Text('新建任务'),
-                    ),
-                  if (canDeliver) ...[
-                    const SizedBox(width: 8),
+              if (expanded) ...[
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
                     if (!completed)
                       OutlinedButton(
-                        onPressed: onComplete,
+                        onPressed: () => _newTask(context, ref),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 4),
                           textStyle: const TextStyle(fontSize: 12),
-                          foregroundColor: const Color(0xFF15803D),
+                          foregroundColor: const Color(0xFF1D4ED8),
                         ),
-                        child: const Text('标记完成'),
+                        child: const Text('新建任务'),
                       ),
-                    const SizedBox(width: 8),
-                    OutlinedButton(
-                      onPressed: onRemove,
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        textStyle: const TextStyle(fontSize: 12),
-                        foregroundColor: const Color(0xFFDC2626),
+                    if (canDeliver) ...[
+                      const SizedBox(width: 8),
+                      if (!completed)
+                        OutlinedButton(
+                          onPressed: onComplete,
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            textStyle: const TextStyle(fontSize: 12),
+                            foregroundColor: const Color(0xFF15803D),
+                          ),
+                          child: const Text('标记完成'),
+                        ),
+                      const SizedBox(width: 8),
+                      OutlinedButton(
+                        onPressed: onRemove,
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          textStyle: const TextStyle(fontSize: 12),
+                          foregroundColor: const Color(0xFFDC2626),
+                        ),
+                        child: const Text('删除'),
                       ),
-                      child: const Text('删除'),
-                    ),
+                    ],
                   ],
-                ],
-              ),
-              if (expanded) ...[
+                ),
                 const Divider(height: 20),
                 _ExpandedTasks(
                   tasksAsync: tasksAsync,
@@ -486,7 +487,7 @@ class _ExpandedTasks extends ConsumerWidget {
       error: (e, _) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Text(dioErrorMessage(e, '加载任务失败'),
-            style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+            style: const TextStyle(color: AppTheme.dangerFg, fontSize: 12)),
       ),
       data: (tasks) {
         if (tasks.isEmpty) {

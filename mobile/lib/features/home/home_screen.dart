@@ -113,7 +113,10 @@ class HomeScreen extends ConsumerWidget {
                   children: [
                     _StatsGrid(stats: s),
                     const SizedBox(height: 16),
-                    _CompletionCard(rate: s.completionRate),
+                    _CompletionCard(
+                      rate: s.completionRate,
+                      hasAny: s.pending + s.completed + s.overdue > 0,
+                    ),
                     if (s.activeSession != null) ...[
                       const SizedBox(height: 16),
                       _ActiveAttendanceCard(session: s.activeSession!),
@@ -201,24 +204,28 @@ class _StatsGrid extends StatelessWidget {
           icon: Icons.pending_actions_rounded,
           label: '待处理任务',
           value: '${stats.pending}',
+          onTap: () => context.go('/tasks?status=pending'),
         ),
         _StatTile(
           gradient: AppTheme.gradGreen,
           icon: Icons.check_circle_rounded,
           label: '已完成任务',
           value: '${stats.completed}',
+          onTap: () => context.go('/tasks?status=completed'),
         ),
         _StatTile(
           gradient: AppTheme.gradCyan,
           icon: Icons.event_available_rounded,
           label: '即将开始会议',
           value: '${stats.upcomingMeetings}',
+          onTap: () => context.push('/meetings'),
         ),
         _StatTile(
           gradient: AppTheme.gradOrange,
           icon: Icons.warning_amber_rounded,
           label: '逾期任务',
           value: '${stats.overdue}',
+          onTap: () => context.go('/tasks?status=overdue'),
         ),
       ],
     );
@@ -231,62 +238,72 @@ class _StatTile extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.value,
+    required this.onTap,
   });
 
   final LinearGradient gradient;
   final IconData icon;
   final String label;
   final String value;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: gradient,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.22),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: Colors.white, size: 22),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: gradient,
+            borderRadius: BorderRadius.circular(14),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                  ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.22),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  label,
-                  style: const TextStyle(color: Color(0xCCFFFFFF), fontSize: 12),
+                child: Icon(icon, color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      value,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      label,
+                      style: const TextStyle(color: Color(0xCCFFFFFF), fontSize: 12),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
 class _CompletionCard extends StatelessWidget {
-  const _CompletionCard({required this.rate});
+  const _CompletionCard({required this.rate, required this.hasAny});
   final double rate;
+  final bool hasAny;
 
   @override
   Widget build(BuildContext context) {
@@ -306,32 +323,32 @@ class _CompletionCard extends StatelessWidget {
                     width: 72,
                     height: 72,
                     child: CircularProgressIndicator(
-                      value: rate.clamp(0.0, 1.0),
+                      value: hasAny ? rate.clamp(0.0, 1.0) : 0,
                       strokeWidth: 7,
                       backgroundColor: const Color(0xFFE2E8F0),
                       valueColor: const AlwaysStoppedAnimation(Color(0xFF3B82F6)),
                     ),
                   ),
                   Text(
-                    '$pct%',
+                    hasAny ? '$pct%' : '—',
                     style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 16),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  const Text(
                     '任务完成率',
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
-                    '保持节奏，稳步推进',
-                    style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
+                    hasAny ? '保持节奏，稳步推进' : '暂无任务',
+                    style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
                   ),
                 ],
               ),
@@ -460,6 +477,11 @@ class _QuickAction extends StatelessWidget {
     required this.route,
   });
 
+  /// Routes pushed onto the stack (have a back button) rather than swapping the
+  /// current tab. Everything in MainScaffold's ShellRoute that isn't a primary
+  /// bottom tab belongs here.
+  static const _pushRoutes = {'/meetings', '/notifications', '/spaces'};
+
   final IconData icon;
   final String label;
   final LinearGradient gradient;
@@ -469,9 +491,7 @@ class _QuickAction extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: () {
-        if (route == '/meetings' ||
-            route == '/notifications' ||
-            route == '/spaces') {
+        if (_pushRoutes.contains(route)) {
           context.push(route);
           return;
         }
