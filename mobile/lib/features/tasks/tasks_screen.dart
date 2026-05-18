@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/network/dio_client.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/widgets/fade_in.dart';
 import 'data/task_models.dart';
 import 'data/tasks_api.dart';
 import 'widgets/task_card.dart';
@@ -190,13 +191,22 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                           itemCount: filtered.length,
                           itemBuilder: (context, i) {
                             final t = filtered[i];
-                            return Padding(
+                            final card = Padding(
                               padding: const EdgeInsets.only(bottom: 10),
                               child: TaskCard(
                                 task: t,
                                 isMine: t.assigneeId == myId,
                                 onTap: () => _openDetail(t),
                               ),
+                            );
+                            // Stagger only the first few rows on initial entry
+                            // — skipping the rest avoids replaying as the user
+                            // scrolls deep into a long list.
+                            if (i >= 6) return card;
+                            return FadeInUp.once(
+                              key: ValueKey(t.id),
+                              delay: Duration(milliseconds: 40 * i),
+                              child: card,
                             );
                           },
                         ),

@@ -45,7 +45,7 @@ onMounted(load)
 
 <template>
   <div class="pending-page">
-    <div class="pending-card">
+    <div class="pending-card animate-fade-in-up">
       <template v-if="status?.approvalStatus === 'rejected'">
         <div class="icon-wrap icon--reject">
           <van-icon name="close" size="36" color="#fff" />

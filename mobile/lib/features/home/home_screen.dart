@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/auth/auth_controller.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/widgets/fade_in.dart';
+import '../../shared/widgets/press_scale.dart';
 import '../attendance/data/attendance_api.dart';
 import '../meetings/data/meetings_api.dart';
 import '../tasks/data/task_models.dart';
@@ -101,7 +103,7 @@ class HomeScreen extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
-              _GreetingCard(realName: auth.user?.realName ?? ''),
+              FadeInUp(child: _GreetingCard(realName: auth.user?.realName ?? '')),
               const SizedBox(height: 16),
               stats.when(
                 loading: () => const _SkeletonGrid(),
@@ -111,21 +113,33 @@ class HomeScreen extends ConsumerWidget {
                 ),
                 data: (s) => Column(
                   children: [
-                    _StatsGrid(stats: s),
+                    FadeInUp(
+                      delay: const Duration(milliseconds: 40),
+                      child: _StatsGrid(stats: s),
+                    ),
                     const SizedBox(height: 16),
-                    _CompletionCard(
-                      rate: s.completionRate,
-                      hasAny: s.pending + s.completed + s.overdue > 0,
+                    FadeInUp(
+                      delay: const Duration(milliseconds: 80),
+                      child: _CompletionCard(
+                        rate: s.completionRate,
+                        hasAny: s.pending + s.completed + s.overdue > 0,
+                      ),
                     ),
                     if (s.activeSession != null) ...[
                       const SizedBox(height: 16),
-                      _ActiveAttendanceCard(session: s.activeSession!),
+                      FadeInUp(
+                        delay: const Duration(milliseconds: 120),
+                        child: _ActiveAttendanceCard(session: s.activeSession!),
+                      ),
                     ],
                   ],
                 ),
               ),
               const SizedBox(height: 20),
-              const _QuickActions(),
+              const FadeInUp(
+                delay: Duration(milliseconds: 160),
+                child: _QuickActions(),
+              ),
             ],
           ),
         ),
@@ -203,28 +217,28 @@ class _StatsGrid extends StatelessWidget {
           gradient: AppTheme.gradBlue,
           icon: Icons.pending_actions_rounded,
           label: '待处理任务',
-          value: '${stats.pending}',
+          value: stats.pending,
           onTap: () => context.go('/tasks?status=pending'),
         ),
         _StatTile(
           gradient: AppTheme.gradGreen,
           icon: Icons.check_circle_rounded,
           label: '已完成任务',
-          value: '${stats.completed}',
+          value: stats.completed,
           onTap: () => context.go('/tasks?status=completed'),
         ),
         _StatTile(
           gradient: AppTheme.gradCyan,
           icon: Icons.event_available_rounded,
           label: '即将开始会议',
-          value: '${stats.upcomingMeetings}',
+          value: stats.upcomingMeetings,
           onTap: () => context.push('/meetings'),
         ),
         _StatTile(
           gradient: AppTheme.gradOrange,
           icon: Icons.warning_amber_rounded,
           label: '逾期任务',
-          value: '${stats.overdue}',
+          value: stats.overdue,
           onTap: () => context.go('/tasks?status=overdue'),
         ),
       ],
@@ -244,55 +258,64 @@ class _StatTile extends StatelessWidget {
   final LinearGradient gradient;
   final IconData icon;
   final String label;
-  final String value;
+  final int value;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            gradient: gradient,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.22),
-                  borderRadius: BorderRadius.circular(10),
+    return PressScale(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: gradient,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.22),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: Colors.white, size: 22),
                 ),
-                child: Icon(icon, color: Colors.white, size: 22),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      value,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Tween from 0 to current value on first build, then from
+                      // previous to new on refresh — gives a satisfying roll.
+                      TweenAnimationBuilder<int>(
+                        tween: IntTween(begin: 0, end: value),
+                        duration: const Duration(milliseconds: 600),
+                        curve: Curves.easeOutCubic,
+                        builder: (_, v, _) => Text(
+                          '$v',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      label,
-                      style: const TextStyle(color: Color(0xCCFFFFFF), fontSize: 12),
-                    ),
-                  ],
+                      const SizedBox(height: 2),
+                      Text(
+                        label,
+                        style: const TextStyle(color: Color(0xCCFFFFFF), fontSize: 12),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -307,7 +330,6 @@ class _CompletionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pct = (rate * 100).round();
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -322,16 +344,26 @@ class _CompletionCard extends StatelessWidget {
                   SizedBox(
                     width: 72,
                     height: 72,
-                    child: CircularProgressIndicator(
-                      value: hasAny ? rate.clamp(0.0, 1.0) : 0,
-                      strokeWidth: 7,
-                      backgroundColor: const Color(0xFFE2E8F0),
-                      valueColor: const AlwaysStoppedAnimation(Color(0xFF3B82F6)),
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0, end: hasAny ? rate.clamp(0.0, 1.0) : 0),
+                      duration: const Duration(milliseconds: 700),
+                      curve: Curves.easeOutCubic,
+                      builder: (_, v, _) => CircularProgressIndicator(
+                        value: v,
+                        strokeWidth: 7,
+                        backgroundColor: const Color(0xFFE2E8F0),
+                        valueColor: const AlwaysStoppedAnimation(Color(0xFF3B82F6)),
+                      ),
                     ),
                   ),
-                  Text(
-                    hasAny ? '$pct%' : '—',
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  TweenAnimationBuilder<int>(
+                    tween: IntTween(begin: 0, end: hasAny ? (rate * 100).round() : 0),
+                    duration: const Duration(milliseconds: 700),
+                    curve: Curves.easeOutCubic,
+                    builder: (_, v, _) => Text(
+                      hasAny ? '$v%' : '—',
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                    ),
                   ),
                 ],
               ),

@@ -6,6 +6,8 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/network/dio_client.dart';
 import '../../core/org/users_api.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/widgets/fade_in.dart';
+import '../../shared/widgets/press_scale.dart';
 import 'data/spaces_api.dart';
 
 enum _SpaceTab { mine, all }
@@ -44,15 +46,17 @@ class _MySpaceScreenState extends ConsumerState<MySpaceScreen> {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: [
             if (canSeeAll) ...[
-              Center(
-                child: SegmentedButton<_SpaceTab>(
-                  segments: const [
-                    ButtonSegment(value: _SpaceTab.mine, label: Text('我的')),
-                    ButtonSegment(value: _SpaceTab.all, label: Text('全部')),
-                  ],
-                  selected: {_tab},
-                  onSelectionChanged: (s) =>
-                      setState(() => _tab = s.first),
+              FadeInUp(
+                child: Center(
+                  child: SegmentedButton<_SpaceTab>(
+                    segments: const [
+                      ButtonSegment(value: _SpaceTab.mine, label: Text('我的')),
+                      ButtonSegment(value: _SpaceTab.all, label: Text('全部')),
+                    ],
+                    selected: {_tab},
+                    onSelectionChanged: (s) =>
+                        setState(() => _tab = s.first),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -201,9 +205,11 @@ class _Section extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title,
-            style:
-                const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+        FadeInUp(
+          child: Text(title,
+              style:
+                  const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+        ),
         const SizedBox(height: 10),
         GridView.count(
           shrinkWrap: true,
@@ -213,7 +219,14 @@ class _Section extends StatelessWidget {
           crossAxisSpacing: 12,
           childAspectRatio: 1.7,
           children: [
-            for (final c in cards) _SpaceCardTile(card: c, scope: scope),
+            for (var i = 0; i < cards.length; i++)
+              if (i < 4)
+                FadeInUp(
+                  delay: Duration(milliseconds: 40 * (i + 1)),
+                  child: _SpaceCardTile(card: cards[i], scope: scope),
+                )
+              else
+                _SpaceCardTile(card: cards[i], scope: scope),
           ],
         ),
       ],
@@ -230,28 +243,29 @@ class _SpaceCardTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final accent =
         scope == 'group' ? const Color(0xFF3B82F6) : const Color(0xFF8B5CF6);
-    return InkWell(
-      onTap: () => context.push('/spaces/$scope/${card.id}'),
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0F0F172A),
-              blurRadius: 6,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 30,
+    return PressScale(
+      child: InkWell(
+        onTap: () => context.push('/spaces/$scope/${card.id}'),
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0F0F172A),
+                blurRadius: 6,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 30,
               height: 30,
               decoration: BoxDecoration(
                 color: accent.withValues(alpha: 0.12),
@@ -278,6 +292,7 @@ class _SpaceCardTile extends StatelessWidget {
                   const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
             ),
           ],
+          ),
         ),
       ),
     );

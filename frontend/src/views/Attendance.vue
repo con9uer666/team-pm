@@ -252,7 +252,7 @@ onMounted(async () => {
 
     <van-tabs v-model:active="activeTab" shrink sticky @change="onTabChange">
       <van-tab title="我的" name="mine">
-        <div class="status-card" :class="{ 'status-card--active': activeSession }">
+        <div class="status-card animate-fade-in-up" :class="{ 'status-card--active': activeSession }">
           <div class="status-title">
             <van-icon :name="activeSession ? 'clock-o' : 'location-o'" size="18" />
             <span>{{ activeSession ? '已上工' : '未上工' }}</span>

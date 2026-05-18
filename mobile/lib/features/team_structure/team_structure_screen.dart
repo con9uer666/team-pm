@@ -5,6 +5,7 @@ import '../../core/models/role.dart';
 import '../../core/network/dio_client.dart';
 import '../../core/org/users_api.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/widgets/fade_in.dart';
 
 class TeamStructureScreen extends ConsumerWidget {
   const TeamStructureScreen({super.key});
@@ -52,59 +53,67 @@ class _Body extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: [
-        _Section(
-          title: '管理层',
-          child: topMgmt.isEmpty
-              ? const _Empty(text: '暂无管理层成员')
-              : Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final u in topMgmt)
-                      _PersonChip(
-                        name: u.realName.isEmpty ? u.username : u.realName,
-                        label: roleLabel(u.roleLevel, position: u.position),
-                        isLeader: true,
-                      ),
-                  ],
-                ),
-        ),
-        const SizedBox(height: 16),
-        _Section(
-          title: '兵种组',
-          child: Column(
-            children: [
-              for (final d in org.divisions)
-                _ExpandableBranch(
-                  name: d.name,
-                  leaderIds: d.leaderIds,
-                  members: org.users
-                      .where((u) =>
-                          u.divisionIds.contains(d.id) &&
-                          !d.leaderIds.contains(u.id))
-                      .toList(),
-                  org: org,
-                ),
-            ],
+        FadeInUp(
+          child: _Section(
+            title: '管理层',
+            child: topMgmt.isEmpty
+                ? const _Empty(text: '暂无管理层成员')
+                : Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final u in topMgmt)
+                        _PersonChip(
+                          name: u.realName.isEmpty ? u.username : u.realName,
+                          label: roleLabel(u.roleLevel, position: u.position),
+                          isLeader: true,
+                        ),
+                    ],
+                  ),
           ),
         ),
         const SizedBox(height: 16),
-        _Section(
-          title: '技术组',
-          child: Column(
-            children: [
-              for (final g in org.groups)
-                _ExpandableBranch(
-                  name: g.name,
-                  leaderIds: g.leaderIds,
-                  members: org.users
-                      .where((u) =>
-                          u.groupIds.contains(g.id) &&
-                          !g.leaderIds.contains(u.id))
-                      .toList(),
-                  org: org,
-                ),
-            ],
+        FadeInUp(
+          delay: const Duration(milliseconds: 60),
+          child: _Section(
+            title: '兵种组',
+            child: Column(
+              children: [
+                for (final d in org.divisions)
+                  _ExpandableBranch(
+                    name: d.name,
+                    leaderIds: d.leaderIds,
+                    members: org.users
+                        .where((u) =>
+                            u.divisionIds.contains(d.id) &&
+                            !d.leaderIds.contains(u.id))
+                        .toList(),
+                    org: org,
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        FadeInUp(
+          delay: const Duration(milliseconds: 120),
+          child: _Section(
+            title: '技术组',
+            child: Column(
+              children: [
+                for (final g in org.groups)
+                  _ExpandableBranch(
+                    name: g.name,
+                    leaderIds: g.leaderIds,
+                    members: org.users
+                        .where((u) =>
+                            u.groupIds.contains(g.id) &&
+                            !g.leaderIds.contains(u.id))
+                        .toList(),
+                    org: org,
+                  ),
+              ],
+            ),
           ),
         ),
       ],

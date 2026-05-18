@@ -78,7 +78,7 @@ onMounted(load)
 
 <template>
   <div class="my-space">
-    <header class="page-header">
+    <header class="page-header animate-fade-in-up">
       <h1>我的空间</h1>
       <p class="sub">你所在的组别都会聚合在这里</p>
     </header>
@@ -93,13 +93,13 @@ onMounted(load)
     <van-loading v-if="loading" class="loading" />
 
     <template v-else>
-      <section class="section" v-if="shownDivisions.length">
+      <section class="section animate-fade-in-up stagger-1" v-if="shownDivisions.length">
         <h2><van-icon name="flag-o" class="section-icon" /> 兵种组</h2>
         <div class="grid">
           <div
-            v-for="d in shownDivisions"
+            v-for="(d, i) in shownDivisions"
             :key="d.id"
-            class="card card--division"
+            :class="['card', 'card--division', 'press-down', i < 4 ? `animate-fade-in-up stagger-${Math.min(i + 2, 5)}` : '']"
             @click="openSpace('division', d.id)"
           >
             <van-icon name="flag-o" class="card__bg-icon" />
@@ -115,13 +115,13 @@ onMounted(load)
         </div>
       </section>
 
-      <section class="section" v-if="shownGroups.length">
+      <section class="section animate-fade-in-up stagger-2" v-if="shownGroups.length">
         <h2><van-icon name="apartment-o" class="section-icon" /> 技术组</h2>
         <div class="grid">
           <div
-            v-for="g in shownGroups"
+            v-for="(g, i) in shownGroups"
             :key="g.id"
-            class="card card--group"
+            :class="['card', 'card--group', 'press-down', i < 4 ? `animate-fade-in-up stagger-${Math.min(i + 3, 5)}` : '']"
             @click="openSpace('group', g.id)"
           >
             <van-icon name="apartment-o" class="card__bg-icon" />

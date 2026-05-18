@@ -186,7 +186,7 @@ onMounted(load)
 
 <template>
   <div class="space-detail" v-if="detail">
-    <header class="header">
+    <header class="header animate-fade-in-up">
       <van-icon name="arrow-left" @click="router.back()" size="20" class="back" />
       <div>
         <h1>{{ detail.info.name }}</h1>
@@ -194,7 +194,7 @@ onMounted(load)
       </div>
     </header>
 
-    <van-tabs v-model:active="active" sticky>
+    <van-tabs v-model:active="active" sticky class="animate-fade-in-up stagger-1">
       <van-tab title="阶段性目标">
         <div class="tab-content">
           <div v-if="canDeliver" class="actions-row">
@@ -202,9 +202,9 @@ onMounted(load)
           </div>
           <van-empty v-if="!detail.objectives.length" description="暂无目标" />
           <div
-            v-for="o in detail.objectives"
+            v-for="(o, i) in detail.objectives"
             :key="o.id"
-            class="obj-card"
+            :class="['obj-card', i < 5 ? `animate-fade-in-up stagger-${Math.min(i + 1, 5)}` : '']"
             @click="toggleExpand(o)"
           >
             <div class="obj-head">

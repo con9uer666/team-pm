@@ -177,7 +177,10 @@
       "Bash(flutter clean *)",
       "Bash(xargs ls -la)",
       "Bash(grep -n 'showSnackBar\\\\|SnackBar\\\\|dioErrorMessage\\\\|\\\\$e' mobile/lib/features/tasks/widgets/task_complete_sheet.dart)",
-      "Bash(grep -n \"t.status\\\\|\\\\\\\\\\\\${t.status}\" frontend/src/views/SpaceDetail.vue)"
+      "Bash(grep -n \"t.status\\\\|\\\\\\\\\\\\${t.status}\" frontend/src/views/SpaceDetail.vue)",
+      "Bash(env)",
+      "Bash(lsof -nP -iTCP -sTCP:LISTEN)",
+      "Bash(git -c http.proxy=http://127.0.0.1:7890 -c https.proxy=http://127.0.0.1:7890 push)"
     ],
     "additionalDirectories": [
       "\\tmp",

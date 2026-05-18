@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/config.dart';
 import '../../core/models/role.dart';
+import '../../shared/widgets/fade_in.dart';
 
 String _avatarInitial(String? name) {
   final trimmed = (name ?? '').trim();
@@ -39,7 +40,7 @@ class ProfileScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Card(
+            FadeInUp(child: Card(
               child: Padding(
                 padding: const EdgeInsets.all(18),
                 child: Row(
@@ -76,9 +77,11 @@ class ProfileScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-            ),
+            )),
             const SizedBox(height: 20),
-            Card(
+            FadeInUp(
+              delay: const Duration(milliseconds: 40),
+              child: Card(
               child: Column(
                 children: [
                   ListTile(
@@ -109,10 +112,12 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                 ],
               ),
-            ),
+            )),
             const SizedBox(height: 12),
             if (auth.canAdmin)
-              Card(
+              FadeInUp(
+                delay: const Duration(milliseconds: 80),
+                child: Card(
                 child: ListTile(
                   leading: const Icon(Icons.shield_outlined, color: Color(0xFF7C3AED)),
                   title: const Text('进入管理后台'),
@@ -123,9 +128,11 @@ class ProfileScreen extends ConsumerWidget {
                     if (context.mounted) context.go('/admin');
                   },
                 ),
-              ),
+              )),
             if (auth.canAdmin) const SizedBox(height: 12),
-            Card(
+            FadeInUp(
+              delay: const Duration(milliseconds: 120),
+              child: Card(
               child: Column(
                 children: [
                   ListTile(
@@ -144,7 +151,7 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                 ],
               ),
-            ),
+            )),
           ],
         ),
       ),

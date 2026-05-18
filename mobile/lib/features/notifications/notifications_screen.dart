@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/network/dio_client.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/widgets/fade_in.dart';
 import 'data/notifications_api.dart';
 
 class NotificationsScreen extends ConsumerWidget {
@@ -78,9 +79,15 @@ class NotificationsScreen extends ConsumerWidget {
                   const Divider(height: 1, color: Color(0xFFE2E8F0)),
               itemBuilder: (_, i) {
                 final n = list[i];
-                return _NotificationTile(
+                final tile = _NotificationTile(
                   item: n,
                   onTap: () => _handleTap(context, ref, n),
+                );
+                if (i >= 6) return tile;
+                return FadeInUp.once(
+                  key: ValueKey(n.id),
+                  delay: Duration(milliseconds: 35 * i),
+                  child: tile,
                 );
               },
             );

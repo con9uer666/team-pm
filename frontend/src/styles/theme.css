@@ -111,6 +111,39 @@ body {
 .stagger-4 { animation-delay: 0.2s; }
 .stagger-5 { animation-delay: 0.25s; }
 
+/* Subtle list-row entrance — smaller distance than fadeInUp, intended for cells inside lists */
+.animate-list-item { animation: listItemIn 240ms cubic-bezier(0.4, 0, 0.2, 1) both; }
+@keyframes listItemIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Brief pop emphasizing a value change (stat cards on first load, refresh, etc.) */
+.animate-count-bump { animation: countBump 360ms cubic-bezier(0.4, 0, 0.2, 1); }
+@keyframes countBump {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+/* Press feedback for tap targets that aren't <van-button> */
+.press-down { transition: transform 120ms ease; }
+.press-down:active { transform: scale(0.97); }
+
+/* Honor system "Reduce motion" preference */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up,
+  .animate-fade-in-left,
+  .animate-fade-in-right,
+  .animate-scale-in,
+  .animate-slide-down,
+  .animate-list-item,
+  .animate-count-bump {
+    animation: none !important;
+  }
+  .card, .card-gradient, .press-down { transition: none !important; }
+}
+
 /* Card styles */
 .card {
   background: var(--bg-card);
@@ -148,6 +181,11 @@ body {
 .card-gradient:hover {
   transform: translateY(-4px) scale(1.02);
   box-shadow: var(--shadow-lg);
+}
+
+.card-gradient:active {
+  transform: scale(0.98);
+  transition: transform 100ms ease;
 }
 
 .card-gradient:hover::before {

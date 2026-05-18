@@ -50,7 +50,7 @@ onMounted(loadData)
 
 <template>
   <div class="notifications-page">
-    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 16px;">
+    <div class="animate-fade-in-up" style="display: flex; justify-content: space-between; align-items: center; padding: 0 16px;">
       <h2>通知</h2>
       <van-button v-if="notifications.some(n => !n.isRead)" size="small" plain @click="markAllRead">全部已读</van-button>
     </div>
@@ -59,12 +59,13 @@ onMounted(loadData)
       <van-empty v-if="!notifications.length" description="暂无通知" />
       <van-cell-group v-else inset>
         <van-cell
-          v-for="n in notifications"
+          v-for="(n, i) in notifications"
           :key="n.id"
           :title="n.title"
           :label="n.content || ''"
           :value="formatTime(n.createdAt)"
-          :class="{ unread: !n.isRead }"
+          :class="[{ unread: !n.isRead }, i < 6 ? `animate-list-item` : '']"
+          :style="i < 6 ? `animation-delay: ${i * 0.04}s` : ''"
           @click="markRead(n)"
         />
       </van-cell-group>

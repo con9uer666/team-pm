@@ -157,7 +157,13 @@ onMounted(loadData)
 
     <van-pull-refresh v-model="loading" @refresh="loadData">
       <van-empty v-if="!meetings.length" description="暂无会议" />
-      <van-cell-group v-for="m in meetings" :key="m.id" inset class="meeting-card" @click="openDetail(m)">
+      <van-cell-group
+        v-for="(m, i) in meetings"
+        :key="m.id"
+        inset
+        :class="['meeting-card', i < 5 ? `animate-fade-in-up stagger-${Math.min(i + 1, 5)}` : '']"
+        @click="openDetail(m)"
+      >
         <van-cell :title="m.title" :label="scopeMap[m.scope] + (m.location ? ' · ' + m.location : '')" is-link>
           <template #right-icon>
             <van-tag :type="(statusMap[m.status]?.type as any) || 'default'" plain>

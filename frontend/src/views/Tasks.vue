@@ -581,20 +581,20 @@ onMounted(async () => {
 
 <template>
   <div class="tasks-page">
-    <div class="page-header">
+    <div class="page-header animate-fade-in-up">
       <h2>任务中心</h2>
       <div class="header-actions">
         <van-button size="small" type="primary" @click="openCreate">创建任务</van-button>
       </div>
     </div>
 
-    <van-tabs v-if="isLeader" v-model:active="activeTab" shrink sticky @change="statusFilter = ''">
+    <van-tabs v-if="isLeader" v-model:active="activeTab" shrink sticky @change="statusFilter = ''" class="animate-fade-in-up stagger-1">
       <van-tab :title="'我的任务'" />
       <van-tab :title="isManager ? '全部任务' : '组员任务'" />
     </van-tabs>
 
     <!-- View mode switcher -->
-    <div class="view-switcher">
+    <div class="view-switcher animate-fade-in-up stagger-2">
       <span class="view-btn" :class="{ active: viewMode === 'list' }" @click="viewMode = 'list'">
         <van-icon name="bars" /> 列表
       </span>
@@ -622,9 +622,10 @@ onMounted(async () => {
       <!-- List View -->
       <div v-if="viewMode === 'list'" class="task-list">
         <TaskCard
-          v-for="task in filteredTasks"
+          v-for="(task, i) in filteredTasks"
           :key="task.id"
           :task="task"
+          :class="i < 6 ? `animate-fade-in-up stagger-${Math.min(i + 1, 5)}` : ''"
           :show-assignee="activeTab === 1"
           :assignee-name="getMemberName(task.assigneeId)"
           :group-name="getGroupName(task.groupId)"

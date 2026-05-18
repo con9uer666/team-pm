@@ -5,6 +5,7 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/network/dio_client.dart';
 import '../../core/org/users_api.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/widgets/fade_in.dart';
 import '../../shared/widgets/status_chip.dart';
 import 'data/meetings_api.dart';
 import 'widgets/meeting_create_sheet.dart';
@@ -72,28 +73,31 @@ class MeetingsScreen extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
               children: [
                 if (active.isNotEmpty) ...[
-                  const Text('进行中 / 即将开始',
-                      style: TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.w600)),
+                  const FadeInUp(
+                    child: Text('进行中 / 即将开始',
+                        style: TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.w600)),
+                  ),
                   const SizedBox(height: 8),
-                  for (final m in active)
-                    _MeetingCard(
-                      meeting: m,
-                      onTap: () => _openDetail(context, ref, m),
-                    ),
+                  ..._withStagger(active, 0, (m) => _MeetingCard(
+                        meeting: m,
+                        onTap: () => _openDetail(context, ref, m),
+                      )),
                 ],
                 if (active.isNotEmpty && past.isNotEmpty)
                   const SizedBox(height: 12),
                 if (past.isNotEmpty) ...[
-                  const Text('已结束',
-                      style: TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.w600)),
+                  FadeInUp(
+                    delay: Duration(milliseconds: 40 * active.length.clamp(0, 5)),
+                    child: const Text('已结束',
+                        style: TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.w600)),
+                  ),
                   const SizedBox(height: 8),
-                  for (final m in past)
-                    _MeetingCard(
-                      meeting: m,
-                      onTap: () => _openDetail(context, ref, m),
-                    ),
+                  ..._withStagger(past, active.length.clamp(0, 5), (m) => _MeetingCard(
+                        meeting: m,
+                        onTap: () => _openDetail(context, ref, m),
+                      )),
                 ],
               ],
             );
@@ -130,6 +134,29 @@ class MeetingsScreen extends ConsumerWidget {
       builder: (_) => MeetingDetailSheet(meetingId: m.id),
     );
     if (changed == true) ref.invalidate(myMeetingsProvider);
+  }
+
+  /// Wrap the first ~5 rows with a staggered fade-in; pass [offset] when this
+  /// section starts after another already-staggered section so delays compound
+  /// naturally instead of resetting.
+  List<Widget> _withStagger<T>(
+    List<T> items,
+    int offset,
+    Widget Function(T) build,
+  ) {
+    final out = <Widget>[];
+    for (var i = 0; i < items.length; i++) {
+      final child = build(items[i]);
+      if (i + offset >= 5) {
+        out.add(child);
+      } else {
+        out.add(FadeInUp(
+          delay: Duration(milliseconds: 40 * (i + offset + 1)),
+          child: child,
+        ));
+      }
+    }
+    return out;
   }
 }
 

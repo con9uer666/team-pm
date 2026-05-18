@@ -6,6 +6,7 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/geo/geolocator_service.dart';
 import '../../core/network/dio_client.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/widgets/fade_in.dart';
 import 'data/attendance_api.dart';
 
 class _AttendanceBundle {
@@ -164,24 +165,32 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                           physics: const AlwaysScrollableScrollPhysics(),
                           padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                           children: [
-                            _StatusCard(
-                              active: data.active,
-                              busy: _busy,
-                              onClockIn: () => _clockIn(data),
-                              onClockOut: _clockOut,
+                            FadeInUp(
+                              child: _StatusCard(
+                                active: data.active,
+                                busy: _busy,
+                                onClockIn: () => _clockIn(data),
+                                onClockOut: _clockOut,
+                              ),
                             ),
                             const SizedBox(height: 14),
-                            _SummaryRow(
-                              fenceCount: data.fences.where((f) => f.enabled).length,
-                              sessions: data.sessions,
+                            FadeInUp(
+                              delay: const Duration(milliseconds: 40),
+                              child: _SummaryRow(
+                                fenceCount: data.fences.where((f) => f.enabled).length,
+                                sessions: data.sessions,
+                              ),
                             ),
                             const SizedBox(height: 16),
                             const Padding(
                               padding: EdgeInsets.only(left: 4, bottom: 8),
-                              child: Text(
-                                '最近打卡',
-                                style: TextStyle(
-                                    fontSize: 14, fontWeight: FontWeight.w600),
+                              child: FadeInUp(
+                                delay: Duration(milliseconds: 80),
+                                child: Text(
+                                  '最近打卡',
+                                  style: TextStyle(
+                                      fontSize: 14, fontWeight: FontWeight.w600),
+                                ),
                               ),
                             ),
                             if (data.sessions.isEmpty)

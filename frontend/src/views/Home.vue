@@ -10,6 +10,11 @@ const router = useRouter()
 const auth = useAuthStore()
 const loaded = ref(false)
 
+// Bumps the stat numbers exactly once when data first lands, so the user
+// gets a small visual confirmation of "fresh data" without the bump
+// recurring on every silent refresh.
+const bumpKey = ref(0)
+
 const stats = ref({
   pendingTasks: 0,
   overdueTasks: 0,
@@ -32,6 +37,7 @@ async function loadStats() {
   } catch (e: any) {
     showFailToast(e?.message || '加载首页数据失败，请下拉刷新')
   }
+  if (!loaded.value) bumpKey.value++
   loaded.value = true
 }
 
@@ -66,28 +72,28 @@ onMounted(loadStats)
     <!-- Stat Cards -->
     <div class="stat-cards">
       <div class="card-gradient animate-fade-in-up stagger-1" style="background: var(--gradient-blue);" @click="router.push({ path: '/tasks', query: { status: 'pending_review' }})">
-        <div class="stat-number">{{ stats.pendingTasks }}</div>
+        <div class="stat-number animate-count-bump" :key="`p-${bumpKey}`">{{ stats.pendingTasks }}</div>
         <div class="stat-label">待完成任务</div>
         <div class="stat-icon">
           <van-icon name="todo-list-o" size="32" color="rgba(255,255,255,0.3)" />
         </div>
       </div>
       <div class="card-gradient animate-fade-in-up stagger-2" style="background: var(--gradient-green);" @click="router.push({ path: '/tasks', query: { status: 'completed' }})">
-        <div class="stat-number">{{ stats.completedTasks }}</div>
+        <div class="stat-number animate-count-bump" :key="`c-${bumpKey}`">{{ stats.completedTasks }}</div>
         <div class="stat-label">已完成任务</div>
         <div class="stat-icon">
           <van-icon name="label-o" size="32" color="rgba(255,255,255,0.3)" />
         </div>
       </div>
       <div class="card-gradient animate-fade-in-up stagger-3" style="background: var(--gradient-cyan);" @click="router.push('/meetings')">
-        <div class="stat-number">{{ stats.upcomingMeetings }}</div>
+        <div class="stat-number animate-count-bump" :key="`m-${bumpKey}`">{{ stats.upcomingMeetings }}</div>
         <div class="stat-label">近期会议</div>
         <div class="stat-icon">
           <van-icon name="clock-o" size="32" color="rgba(255,255,255,0.3)" />
         </div>
       </div>
       <div class="card-gradient animate-fade-in-up stagger-4" style="background: var(--gradient-orange);" @click="router.push({ path: '/tasks', query: { status: 'overdue' }})">
-        <div class="stat-number">{{ stats.overdueTasks }}</div>
+        <div class="stat-number animate-count-bump" :key="`o-${bumpKey}`">{{ stats.overdueTasks }}</div>
         <div class="stat-label">逾期任务</div>
         <div class="stat-icon">
           <van-icon name="warning-o" size="32" color="rgba(255,255,255,0.3)" />
