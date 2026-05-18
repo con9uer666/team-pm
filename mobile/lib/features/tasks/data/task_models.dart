@@ -190,3 +190,24 @@ class TaskItem {
     );
   }
 }
+
+/// Filter option used by the task screen and admin task overview.
+class TaskStatusOption {
+  const TaskStatusOption({required this.value, required this.label});
+
+  /// Empty string means "all".
+  final String value;
+  final String label;
+}
+
+/// Canonical task status filter list — kept in one place so the user-facing
+/// tasks page and the admin overview present the same chips in the same order.
+const kTaskStatusFilters = <TaskStatusOption>[
+  TaskStatusOption(value: '', label: '全部'),
+  TaskStatusOption(value: 'pending_review', label: '待审核'),
+  TaskStatusOption(value: 'approved', label: '进行中'),
+  TaskStatusOption(value: 'pending_completion', label: '待结案审核'),
+  TaskStatusOption(value: 'completed', label: '已完成'),
+  TaskStatusOption(value: 'rejected', label: '已驳回'),
+  TaskStatusOption(value: 'overdue', label: '已逾期'),
+];

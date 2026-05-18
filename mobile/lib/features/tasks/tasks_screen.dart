@@ -23,21 +23,7 @@ enum _TaskScope { own, team, all }
 
 enum _ViewMode { list, person, gantt }
 
-const _statusFilters = [
-  _StatusOption(value: '', label: '全部'),
-  _StatusOption(value: 'pending_review', label: '待审核'),
-  _StatusOption(value: 'approved', label: '进行中'),
-  _StatusOption(value: 'pending_completion', label: '待结案审核'),
-  _StatusOption(value: 'completed', label: '已完成'),
-  _StatusOption(value: 'rejected', label: '已驳回'),
-  _StatusOption(value: 'overdue', label: '已逾期'),
-];
-
-class _StatusOption {
-  const _StatusOption({required this.value, required this.label});
-  final String value;
-  final String label;
-}
+const _statusFilters = kTaskStatusFilters;
 
 class TasksScreen extends ConsumerStatefulWidget {
   const TasksScreen({super.key});

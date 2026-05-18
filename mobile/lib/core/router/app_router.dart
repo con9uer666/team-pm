@@ -4,7 +4,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/admin/dashboard/admin_dashboard_screen.dart';
 import '../../features/admin/fences/admin_fences_screen.dart';
+import '../../features/admin/meetings/admin_meetings_screen.dart';
+import '../../features/admin/objectives/admin_objectives_screen.dart';
 import '../../features/admin/org/admin_org_screen.dart';
+import '../../features/admin/tasks/admin_tasks_screen.dart';
 import '../../features/admin/users/admin_users_screen.dart';
 import '../../features/attendance/attendance_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
@@ -195,20 +198,20 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/admin/tasks',
             name: 'admin-tasks',
-            pageBuilder: (_, _) => const NoTransitionPage(
-                child: AdminPlaceholderScreen(title: '任务管理（建设中）')),
+            pageBuilder: (_, _) =>
+                const NoTransitionPage(child: AdminTasksScreen()),
           ),
           GoRoute(
             path: '/admin/meetings',
             name: 'admin-meetings',
-            pageBuilder: (_, _) => const NoTransitionPage(
-                child: AdminPlaceholderScreen(title: '会议管理（建设中）')),
+            pageBuilder: (_, _) =>
+                const NoTransitionPage(child: AdminMeetingsScreen()),
           ),
           GoRoute(
             path: '/admin/objectives',
             name: 'admin-objectives',
-            pageBuilder: (_, _) => const NoTransitionPage(
-                child: AdminPlaceholderScreen(title: '目标管理（建设中）')),
+            pageBuilder: (_, _) =>
+                const NoTransitionPage(child: AdminObjectivesScreen()),
           ),
           GoRoute(
             path: '/admin/fences',

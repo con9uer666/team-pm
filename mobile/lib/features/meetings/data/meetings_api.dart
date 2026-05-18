@@ -99,6 +99,15 @@ class MeetingsApi {
         .toList();
   }
 
+  /// Admin-only convenience: fetch every meeting in the system. Backend
+  /// `GET /meetings` is unrestricted; UI gates this behind admin mode.
+  Future<List<MeetingInfo>> getAll() async {
+    final data = await _client.get<List<dynamic>>('/meetings');
+    return data
+        .map((e) => MeetingInfo.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<MeetingInfo> getById(String id) async {
     final data = await _client.get<Map<String, dynamic>>('/meetings/$id');
     return MeetingInfo.fromJson(data);
@@ -187,4 +196,9 @@ final meetingsApiProvider = Provider<MeetingsApi>((ref) {
 final myMeetingsProvider =
     FutureProvider.autoDispose<List<MeetingInfo>>((ref) async {
   return ref.watch(meetingsApiProvider).getMy();
+});
+
+final allMeetingsProvider =
+    FutureProvider.autoDispose<List<MeetingInfo>>((ref) async {
+  return ref.watch(meetingsApiProvider).getAll();
 });
